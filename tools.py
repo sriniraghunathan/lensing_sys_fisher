@@ -22,6 +22,10 @@ def get_ini_param_dict(fpath = 'params/params_planck_r_0.0_2015_cosmo_lensed_LSS
     for rec in params:
         val = rec[1].strip()##.decode("utf-8")
         try:
+            val = val.decode("utf-8")
+        except:
+            pass
+        try:
             if val.find('.')>-1:
                 val = float(val)
             else:
@@ -31,7 +35,11 @@ def get_ini_param_dict(fpath = 'params/params_planck_r_0.0_2015_cosmo_lensed_LSS
 
         if val == 'None':
             val = None
-        paramname = rec[0].strip()#.decode("utf-8")
+        paramname = rec[0].strip()
+        try:
+            paramname = paramname.decode("utf-8")
+        except:
+            pass
         param_dict[paramname] = val
 
     return param_dict
@@ -65,7 +73,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
     ########################
     #set all CAMB parameters
-    pars = camb.CAMBparams()
+    #pars = camb.CAMBparams()
     pars = camb.CAMBparams(max_l_tensor = param_dict_to_use['max_l_tensor'], max_eta_k_tensor = param_dict_to_use['max_eta_k_tensor'])
     pars.set_accuracy(AccuracyBoost = param_dict_to_use['AccuracyBoost'], lAccuracyBoost = param_dict_to_use['lAccuracyBoost'], 
         lSampleBoost = param_dict_to_use['lSampleBoost'],
