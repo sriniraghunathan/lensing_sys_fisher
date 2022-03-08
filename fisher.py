@@ -21,7 +21,7 @@ parser.add_argument('-include_lensing', dest='include_lensing', action='store', 
 #xx percent of lensing N0 will be considered as lensing systematic
 parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
 
-#ILC residual
+#ILC residual file
 parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 1)
 #or add noise levels (only used if use_ilc_nl = 0)
 parser.add_argument('-rms_map_T', dest='rms_map_T', action='store', help='rms_map_T', type=float, default = 2.)
