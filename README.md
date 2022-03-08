@@ -3,4 +3,4 @@
 
 Fisher code:
 ================================
-* Simply run as ```python fisher.py'''
+* Simply run as ```python fisher.py```
