@@ -32,6 +32,7 @@ parser.add_argument('-debug', dest='debug', action='store', help='debug', type=i
 
 args = parser.parse_args()
 args_keys = args.__dict__
+
 for kargs in args_keys:
     param_value = args_keys[kargs]
     if isinstance(param_value, str):
@@ -42,6 +43,8 @@ for kargs in args_keys:
 
 if debug: from pylab import *
 logline='\nstart Fisher forecasting\n'; tools.write_log(logline)
+
+
 
 ############################################################################################################
 #get experiment specs
@@ -56,7 +59,7 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+params_to_constrain = ['As', 'neff']#, 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -79,7 +82,9 @@ else:
 #get/read the parameter file
 logline = '\tget/read the parameter file'; tools.write_log(logline)
 param_dict = tools.get_ini_param_dict(paramfile)
+print(param_dict)
 param_dict['Alens'] = Alens
+#exit()
 ############################################################################################################
 
 ############################################################################################################
@@ -87,7 +92,6 @@ param_dict['Alens'] = Alens
 #please change to get the delensed spectra
 logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
 pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
-#print(cl_dict.keys())
 if (0):#debug:
     ax = subplot(111, yscale = 'log')
     dl_fac = els * (els+1)/2/np.pi
@@ -103,7 +107,7 @@ if (0):#debug:
 #get derivatives
 #please change to get the derivatives for the delensed spectra
 logline = '\tget/read derivatives'; tools.write_log(logline)
-cl_deriv_dict = tools.get_dervatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
+cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
 param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
 if (0):#debug:
     for keyname in cl_deriv_dict:
@@ -159,29 +163,27 @@ if 'PP' in pspectra_to_use: #include lensing noise
 
 ############################################################################################################
 #add lensing systematic
-if include_lensing and lensing_sys_n0_frac > 0.: #assume roughly xx per cent lensing N0 to be the systematic error
+if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx per cent lensing N0 to be the systematic error
 
-    #get the lensing systematic in phi space. It is simply nl_mv_phiphi * lensing_sys_n0_frac
-    factor_phi_deflection = (els * (els+1) )**2./2/np.pi
-    nl_mv_phiphi = nl_mv / factor_phi_deflection
-    nl_mv_phiphi_sys = nl_mv_phiphi * lensing_sys_n0_frac
+    els_pivot=80
+    #compute the lensing systematic in Cl space.
+    factor_phi_deflection = (els * (els+1) )**2./2./np.pi
+    A_phi_sys=float(param_dict['A_phi_sys'])
+    alpha_phi_sys=float(param_dict['alpha_phi_sys'])
+    #fit a power law for nl_mv_sys
+    nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
+    nl_dict['PP'] += nl_mv_sys
 
-    #fit a power law for nl_mv_phiphi_sys
-    params_for_lensing_sys_dic = {'Asys_lens': max(nl_mv_phiphi_sys), 'alphasys_lens': 3.3}
-    Asys_lens_val, alphasys_lens_val= params_for_lensing_sys_dic['Asys_lens'], params_for_lensing_sys_dic['alphasys_lens']
-    nl_mv_phiphi_sys_fit = Asys_lens_val * (els**-alphasys_lens_val)
-    nl_mv_sys_fit = nl_mv_phiphi_sys_fit * factor_phi_deflection #go back to deflection angle space
 
     if debug:
         ax = subplot(111, yscale = 'log')
-        plot(els, nl_mv_phiphi, 'k-', label = r'N0')
-        plot(els, nl_mv_phiphi_sys, ls = '-', color = 'orangered', label = r'Systematic')
-        plot(els, nl_mv_phiphi_sys_fit, ls = '-', color = 'darkgreen', label = r'Fit')
+        plot(els, nl_mv, 'k-', label = r'N0')
+        plot(els, nl_mv_sys, ls = '-', color = 'orangered', label = r'Systematic')
         xlabel(r'Multipole $\ell$'); ylabel(r'$[L(L+1)]^2 C_L^{\phi\phi} / 2\pi$')
         show(); #sys.exit()
 
     #now we must compute the derivatives for the two parameters governing the lensing systematic    
-    for ppp in params_for_lensing_sys_dic:
+    for ppp in ['A_phi_sys','alpha_phi_sys']:
         cl_deriv_dict[ppp] = {}
         #derivatives w.r.t TT/EE/TE/Tphi/EPhi are all zero since this is a lensing related systematic
         """
@@ -195,24 +197,22 @@ if include_lensing and lensing_sys_n0_frac > 0.: #assume roughly xx per cent len
         cl_deriv_dict[ppp]['TE'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
-        if ppp == 'Asys_lens':
-            cl_deriv_dict[ppp]['PP'] = nl_mv_sys_fit #derivative is the same as the signal: d/dA (Ax) = x.
-        elif ppp == 'alphasys_lens': #compute derivative using finite difference method
+        if ppp == 'A_phi_sys':
+            cl_deriv_dict[ppp]['PP'] = nl_mv_sys /A_phi_sys #derivative is the same as the signal: d/dA (Ax) = x.
 
-            #get the fiducial amplitude and tilt
-            Asys_lens_val, alphasys_lens_val = params_for_lensing_sys_dic['Asys_lens'], params_for_lensing_sys_dic[ppp]
+        elif ppp == 'alpha_phi_sys': #compute derivative using finite difference method
 
             #assume some step size (roughly 1 per cent of the fiducial value)
-            step_size = params_for_lensing_sys_dic[ppp] * 0.001
-            alphasys_lens_val_low, alphasys_lens_val_high = alphasys_lens_val - step_size, alphasys_lens_val + step_size
+            step_size = alpha_phi_sys * 0.01
+            alpha_phi_sys_low, alpha_phi_sys_high = alpha_phi_sys - step_size, alpha_phi_sys + step_size
 
-            #get the systematic by perturbing alphasys_lens_val (i.e:) with alphasys_lens_val_low and alphasys_lens_val_high
-            nl_mv_phiphi_sys_fit_low = Asys_lens_val * (els**-alphasys_lens_val_low)
-            nl_mv_phiphi_sys_fit_high = Asys_lens_val * (els**-alphasys_lens_val_high)
-            nl_mv_phiphi_sys_fit_der = (nl_mv_phiphi_sys_fit_high - nl_mv_phiphi_sys_fit_low) / ( 2 * step_size)
-            nl_mv_sys_fit_der = nl_mv_phiphi_sys_fit_der * factor_phi_deflection #go back to deflection angle space
+            #get the systematic by perturbing alphq_phi_sys_val 
+            nl_mv_sys_low = A_phi_sys * ((els/els_pivot)**alpha_phi_sys_low)
+            nl_mv_sys_high = A_phi_sys * ((els/els_pivot)**alpha_phi_sys_high)
+            nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
+            nl_mv_sys_der = nl_mv_sys_der * factor_phi_deflection #go back to deflection angle space
 
-            cl_deriv_dict[ppp]['PP'] = nl_mv_sys_fit_der
+            cl_deriv_dict[ppp]['PP'] = nl_mv_sys_der
 
     if debug:
         for ppp in params_for_lensing_sys_dic:
@@ -227,7 +227,9 @@ if include_lensing and lensing_sys_n0_frac > 0.: #assume roughly xx per cent len
         #sys.exit()
 
     #modify param_names to include lensing related systematic
+    print(param_names)
     param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
+    print(param_names)
 ############################################################################################################
 
 ############################################################################################################
@@ -282,7 +284,7 @@ for desired_param in desired_param_arr:
     cov_inds_to_extract = [(pcntr1, pcntr1), (pcntr1, pcntr2), (pcntr2, pcntr1), (pcntr2, pcntr2)]
     cov_extract = np.asarray( [cov_mat[ii] for ii in cov_inds_to_extract] ).reshape((2,2))
     sigma = cov_extract[0,0]**0.5
-    opline = '\t\t\simga(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
+    opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
     print(opline)
 ############################################################################################################
 

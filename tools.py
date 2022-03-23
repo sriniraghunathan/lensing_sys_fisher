@@ -150,7 +150,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
 ########################################################################################################################
 
-def get_dervatives(param_dict, which_spectra, step_size_dict_for_derivatives = None, params_to_constrain = None):
+def get_derivatives(param_dict, which_spectra, step_size_dict_for_derivatives = None, params_to_constrain = None):
 
     """
     compute derivatives using finite difference method

@@ -18,6 +18,9 @@ YHe = None ##0.2454006
 Alens = 1.
 Aphiphi = 1.
 
+A_phi_sys=1e-5
+alpha_phi_sys=-2
+
 mnu= 0.06
 num_nu_massive = 1
 
