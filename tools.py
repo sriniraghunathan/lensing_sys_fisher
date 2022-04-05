@@ -556,5 +556,91 @@ def fisher_forecast_Aphiphi(els, cl_deriv_dict, delta_cl_dict, params, pspectra_
     return F    
 
 ########################################################################################################################
+
+def get_delensed_from_lensed(els, cl_uns, cl_tots , dimx = 1024, dimy = 1024, fftd = 10):
+    #input should be cl_dict
+    dluse = fftd
+    lmax = els[-1]
+    lmin = els[0]
+    clt_tot = cl_tots['TT']
+    cle_tot = cl_tots['EE']
+    clb_tot = cl_tots['BB']
+    clte_tot = cl_tots['TE']
+    clt_u = cl_uns['TT']
+    cle_u = cl_uns['EE']
+    clb_u = cl_uns['BB']
+    clte_u = cl_uns['TE']
+    nadd = Nadd()
+    xs = np.fft.fftfreq(dimx, fftd)
+    ys = np.fft.fftfreq(dimy, fftd)
+    dluse = xs[1] - xs[0]
+    xx, yy = np.meshgrid(xs, ys)
+    l1xs = xx.ravel()
+    l1ys = yy.ravel()
+    l1s = (l1xs**2 + l1ys**2)**0.5
+    idl1 = np.nonzero((l1s < lmax)&(l1s > lmin))
+    l1xs = l1xs[idl1]
+    l1ys = l1ys[idl1]
+    l1s = l1s[idl1]
+    delen_tp = np.zeros(len(els))
+    delen_ep = np.zeros(len(els))
+    delen_bp = np.zeros(len(els))
+    delen_tep = np.zeros(len(els))
+
+    for i, Li in enumerate(els):
+        print(i, " ",Li)
+        [lx, ly] = [Li, 0]
+        [l2xs, l2ys] = [ lx-l1xs, ly-l1ys]
+        l2s = (l2xs**2 + l2ys**2)**0.5
+        idl = np.nonzero( l2s < lmax )
+        l1xs = l1xs[idl]
+        l1ys = l1ys[idl]
+        l1s = l1s[idl]
+        l2xs = l2xs[idl]
+        l2ys = l2ys[idl]
+        l2s = l2s[idl]
+        l1s_dot_L = l1xs*lx + l1ys*ly
+        l1_cross_L = l1xs*ly - l1ys*lx
+        l2s_dot_L = l2xs*lx + l2ys*ly
+        l1v_dot_l2v = l1xs * l2xs + l1ys*l2ys
+        l1l2 = l1s * l2s
+        l1L = l1s * Li
+        idsin = np.nonzero(l1L)        
+        C_TT = interpolate.interp1d(ls, clt_tot) #observe
+        cosphi = l1_dot_L / l1L
+        sinphi = l1_cross_L / l1L
+        sin2phi = 2 * cosphi * sinphi
+        cos2phi = 2 * cosphi**2 - 1
+        wllb = l1v_dot_l2v * sin2phi
+        wlle = l1v_dot_l2v * cos2phi
+        wllt = l1v_dot_l2v
+        tn2 = wll**2 * ct(l1s) * cphi(l2s) * ce(l1s) / (ct(l1s)+nt(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
+        bn2 = wllb**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
+        en2 = wlle**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
+        ten2 = wllt*wlle * te(l1s) * cphi(l2s) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
+        ts2 = np.sum(tn2)
+        es2 = np.sum(en2)
+        bs2 = np.sum(bn2)
+        tes2 = np.sum(ten2)
+        delen_tp[i] = dluse**2 / (2 * np.pi)**2 * ts2
+        delen_ep[i] = dluse**2 / (2 * np.pi)**2 * es2
+        delen_bp[i] = dluse**2 / (2 * np.pi)**2 * bs2
+        delen_tep[i] = dluse**2 / (2 * np.pi)**2 * tes2
+
+    dcl_dict = {}
+    dcl_dict['TT'] = delen_tp
+    dcl_dict['EE'] = delen_ep
+    dcl_dict['BB'] = delen_bp
+    dcl_dict['TE'] = delen_tep
+
+    return dcl_dict
+
+
 ########################################################################################################################
+
+def Nadd(l, A, lp = 100):
+    nadd = A * (l/lp)**nL
+    return s2
+
+
 ########################################################################################################################
