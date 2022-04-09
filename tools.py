@@ -2,6 +2,8 @@ import numpy as np, sys, scipy as sc, os
 #from pylab import *
 from scipy import linalg
 import copy
+from scipy import interpolate 
+from scipy.interpolate import interp1d
 
 ########################################################################################################################
 def write_log(logline, log_file = None):
@@ -105,6 +107,26 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     ########################
 
     ########################
+    #add delensedCL
+    if which_spectra == 'delensed_scalar':
+        cl_phiphi, cl_Tphi, cl_Ephi = powers['lens_potential'].T
+        cphifun = interpolate.interp1d(els, cl_phiphi)
+        #n0s = np.loadtxt('params/params_n0_default.txt')
+        n0s = np.loadtxt('params/spt_n0_3uk_lmax4k.dat') # use this n0 as a test
+        tail = np.zeros(3000)   # to make sure lmax is in the range of n0
+        n0ls = np.append(n0s[:,0], tail)
+        n0mv = np.append(n0s[:,-1], tail)
+        n0fun = interpolate.interp1d(n0ls, n0mv)
+        totCL=powers['total']
+        unlensedCL=powers['unlensed_total']
+        print('lenels ',len(els))
+        print('lenecl ',unlensedCL.shape)
+        bl, nlT, nlP = get_nl(els, 2., None, 1.)
+        delensed_dict,  delensedCL=get_delensed_from_lensed(els, unlensedCL, totCL , cphifun, n0fun,  nlT, nlP, dimx = 1024, dimy = 1024, fftd = 10)
+        powers['delensed_scalar'] = delensedCL
+    ########################
+
+    ########################
     #do we need cl or dl
     if not raw_cl: #20200529: also valid for lensing (see https://camb.readthedocs.io/en/latest/_modules/camb/results.html#CAMBdata.get_lens_potential_cls)
         powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
@@ -147,6 +169,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     cl_dict['Ephi'] = cl_Ephi
 
     return pars, els, cl_dict
+
+########################################################################################################################
+
 
 ########################################################################################################################
 
@@ -557,20 +582,27 @@ def fisher_forecast_Aphiphi(els, cl_deriv_dict, delta_cl_dict, params, pspectra_
 
 ########################################################################################################################
 
-def get_delensed_from_lensed(els, cl_uns, cl_tots , dimx = 1024, dimy = 1024, fftd = 10):
+def get_delensed_from_lensed(els, cl_uns, cl_tots , cphi, n0, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 10):
     #input should be cl_dict
     dluse = fftd
     lmax = els[-1]
     lmin = els[0]
-    clt_tot = cl_tots['TT']
-    cle_tot = cl_tots['EE']
-    clb_tot = cl_tots['BB']
-    clte_tot = cl_tots['TE']
-    clt_u = cl_uns['TT']
-    cle_u = cl_uns['EE']
-    clb_u = cl_uns['BB']
-    clte_u = cl_uns['TE']
-    nadd = Nadd()
+    clt_tot = cl_tots[:,0]
+    cle_tot = cl_tots[:,1]
+    clb_tot = cl_tots[:,2]
+    clte_tot = cl_tots[:,3]
+    clt_u = cl_uns[:,0]
+    cle_u = cl_uns[:,1]
+    clb_u = cl_uns[:,2]
+    clte_u = cl_uns[:,3]
+    print('lenels',len(els))
+    print('leneclt',len(clt_tot))
+    ct = interpolate.interp1d(els, clt_tot) #observe
+    ce = interpolate.interp1d(els, cle_tot) #observe
+    cb = interpolate.interp1d(els, clb_tot) #observe
+    te = interpolate.interp1d(els, clte_tot) #observe
+    nt = interpolate.interp1d(els, nl_TT) #observe
+    ne = interpolate.interp1d(els, nl_PP) #observe
     xs = np.fft.fftfreq(dimx, fftd)
     ys = np.fft.fftfreq(dimy, fftd)
     dluse = xs[1] - xs[0]
@@ -586,9 +618,12 @@ def get_delensed_from_lensed(els, cl_uns, cl_tots , dimx = 1024, dimy = 1024, ff
     delen_ep = np.zeros(len(els))
     delen_bp = np.zeros(len(els))
     delen_tep = np.zeros(len(els))
+    #print(i, " ",Li)
 
     for i, Li in enumerate(els):
-        print(i, " ",Li)
+        if Li%500 == 0:
+            print('Li ',Li)
+
         [lx, ly] = [Li, 0]
         [l2xs, l2ys] = [ lx-l1xs, ly-l1ys]
         l2s = (l2xs**2 + l2ys**2)**0.5
@@ -606,18 +641,17 @@ def get_delensed_from_lensed(els, cl_uns, cl_tots , dimx = 1024, dimy = 1024, ff
         l1l2 = l1s * l2s
         l1L = l1s * Li
         idsin = np.nonzero(l1L)        
-        C_TT = interpolate.interp1d(ls, clt_tot) #observe
-        cosphi = l1_dot_L / l1L
+        cosphi = l1s_dot_L / l1L
         sinphi = l1_cross_L / l1L
         sin2phi = 2 * cosphi * sinphi
         cos2phi = 2 * cosphi**2 - 1
         wllb = l1v_dot_l2v * sin2phi
         wlle = l1v_dot_l2v * cos2phi
         wllt = l1v_dot_l2v
-        tn2 = wll**2 * ct(l1s) * cphi(l2s) * ce(l1s) / (ct(l1s)+nt(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
-        bn2 = wllb**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
-        en2 = wlle**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
-        ten2 = wllt*wlle * te(l1s) * cphi(l2s) * cphi(l2s) / (cphi(l2s)+n0(l2s)+nadd(l2s))
+        tn2 = wllt**2 * ct(l1s) * cphi(l2s) * ct(l1s) / (ct(l1s)+nt(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
+        bn2 = wllb**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
+        en2 = wlle**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
+        ten2 = wllt*wlle * te(l1s) * cphi(l2s) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
         ts2 = np.sum(tn2)
         es2 = np.sum(en2)
         bs2 = np.sum(bn2)
@@ -632,15 +666,128 @@ def get_delensed_from_lensed(els, cl_uns, cl_tots , dimx = 1024, dimy = 1024, ff
     dcl_dict['EE'] = delen_ep
     dcl_dict['BB'] = delen_bp
     dcl_dict['TE'] = delen_tep
-
-    return dcl_dict
+    data = np.column_stack((delen_tp, delen_ep, delen_bp, delen_tep))
+    return dcl_dict, data
 
 
 ########################################################################################################################
 
-def Nadd(l, A, lp = 100):
+
+def calculate_n0(cl_uns, cl_tots, els):
+    xs = np.linspace(-6000, 6000, 2000)
+    ys = np.linspace(-6000, 6000, 2000)
+    xx, yy = np.meshgrid(xs, ys)
+    l1xs = xx.ravel()
+    l1ys = yy.ravel()
+    l1s = (l1xs**2 + l1ys**2)**0.5
+    idl1 = np.nonzero(l1s < 6000)
+    l1xs = l1xs[idl1]
+    l1ys = l1ys[idl1]
+    l1s = l1s[idl1]
+    n0_TT = np.zeros(len(L))
+    n0_TE = np.zeros(len(L))
+    n0_TB = np.zeros(len(L))
+    n0_EE = np.zeros(len(L))
+    n0_EB = np.zeros(len(L))
+    n0_BB = np.zeros(len(L))
+    #n0 = {'TT':n0_TT, 'TE':n0_TE, 'TB':n0_TB, 'EE':n0_EE, 'EB':n0_EB, 'BB':n0_BB}
+    n0 = {'TT':n0_TT, 'TE':n0_TE, 'TB':n0_TB, 'EE':n0_EE, 'EB':n0_EB}
+    cal_bb = np.asarray(powers['BB'])
+    cal_ee = np.asarray(powers['EE'])
+    cal_tt = np.asarray(powers['TT'])
+    cal_te = np.asarray(powers['TE'])
+    #tail = np.zeros(10000)
+    #cal_bb = np.concatenate([cal_bb0, tail])
+    cal_l = np.arange(len(cal_ee))
+    idpower = np.nonzero(cal_tt) 
+    print(cal_l[idpower])
+    C_BB = interpolate.interp1d(cal_l[idpower], cal_bb[idpower]) #observe
+    C_EE = interpolate.interp1d(cal_l[idpower], cal_ee[idpower]) #observe
+    C_TT = interpolate.interp1d(cal_l[idpower], cal_tt[idpower]) #observe
+    C_TE = interpolate.interp1d(cal_l[idpower], cal_te[idpower]) #observe
+    #print(cal_l[idpower])
+    #print(idpower)
+    for i, Li in enumerate(L):
+        if Li%500 == 0:
+            print('Li ',Li)
+        [lx, ly] = [Li, 0]
+        [l2xs, l2ys] = [ lx-l1xs, ly-l1ys]
+        l2s = (l2xs**2 + l2ys**2)**0.5
+        idl = np.nonzero( l2s < 6000 )
+        l1xs = l1xs[idl]
+        l1ys = l1ys[idl]
+        l1s = l1s[idl]
+        l2xs = l2xs[idl]
+        l2ys = l2ys[idl]
+        l2s = l2s[idl]
+        l1s_dot_L = l1xs*lx + l1ys*ly
+        l2s_dot_L = l2xs*lx + l2ys*ly
+        l1_dot_l2 = l1s * l2s
+        l1v_dot_l2v = l1xs * l2xs + l1ys*l2ys
+        l1_cross_l2 = l1xs*l2ys - l1ys*l2xs
+        idsin = np.nonzero(l1_dot_l2)        
+        sinphi = np.zeros(len(l1s))
+        cosphi = np.zeros(len(l1s))
+        cosphi[idsin] = l1v_dot_l2v[idsin] / l1_dot_l2[idsin]
+        sinphi[idsin] = l1_cross_l2[idsin] / l1_dot_l2[idsin]
+        sin2phi = 2 * sinphi * cosphi
+        cos2phi = 2 * cosphi**2 - 1
+        #intgitem = cmbf.f_EB(l1s, l1s_dot_L, l2s, l2s_dot_L, sin2phi)**2 / C_EE(l1s) / C_BB(l2s)
+        ce_dot_cb = C_EE(l1s) * C_BB(l2s)
+        ce_dot_ce = 2 * C_EE(l1s) * C_EE(l2s)
+        #cb_dot_cb = 2 * C_BB(l1s) * C_BB(l2s)
+        ct_dot_ct = 2 * C_TT(l1s) * C_TT(l2s)
+        ct_dot_cb = C_TT(l1s) * C_BB(l2s)
+        ct_dot_ce1 = C_TT(l1s) * C_EE(l2s)
+        ct_dot_ce2 = C_TT(l2s) * C_EE(l1s)
+        cte_tot_cte = C_TE(l1s)*C_TE(l2s)
+        tes =  ct_dot_ce2 * ct_dot_ce1 - ( cte_tot_cte )**2
+        ideb = np.nonzero(ce_dot_cb)
+        idee = np.nonzero(ce_dot_ce)
+        #idbb = np.nonzero(cb_dot_cb)
+        idtt = np.nonzero(ct_dot_ct)
+        idtb = np.nonzero(ct_dot_cb)
+        idte = np.nonzero(tes)
+        cmbf = cmb_f()
+        feb = cmbf.f_EB(l1s, l1s_dot_L, l2s, l2s_dot_L, sin2phi)
+        fee = cmbf.f_EE(l1s, l1s_dot_L, l2s, l2s_dot_L, cos2phi)
+        ftt = cmbf.f_TT(l1s, l1s_dot_L, l2s, l2s_dot_L)
+        fte1 = cmbf.f_TE(l1s, l1s_dot_L, l2s, l2s_dot_L, cos2phi)
+        fte2 = cmbf.f_TE(l2s, l2s_dot_L, l1s, l1s_dot_L, cos2phi)
+        ftb = cmbf.f_TB(l1s, l1s_dot_L, sin2phi)
+        #fbb = cmbf.f_BB(l1s, l1s_dot_L, l2s, l2s_dot_L, cos2phi)
+        intgitem_eb = feb[ideb]**2 / ce_dot_cb[ideb]
+        intgitem_ee = fee[idee]**2 / ce_dot_ce[idee]
+        #intgitem_bb = fbb[idbb]**2 / cb_dot_cb[idbb]
+        intgitem_tt = ftt[idtt]**2 / ct_dot_ct[idtt]
+        intgitem_tb = ftb[idtb]**2 / ct_dot_cb[idtb]
+        intgitem_te = ( ct_dot_ce2[idte]*fte1[idte]**2 - cte_tot_cte[idte]*fte1[idte]*fte2[idte]) / tes[idte]
+        #print(C_BB(l2s))
+        s0 = sum(intgitem_eb)
+        s1 = sum(intgitem_ee)
+        #s2 = sum(intgitem_bb)
+        s3 = sum(intgitem_tt)
+        s4 = sum(intgitem_tb)
+        s5 = sum(intgitem_te)
+        #print("s0 ",s0, "s1 ", s1, "s3 ",s3,  "s4 ",s4, "s5 ", s5)
+        if s0 != 0 and s1 != 0 and s3 != 0 and s4 !=0 and s5 != 0 :
+            n0['EB'][i] = (2 * np.pi)**2 / s0 /10**2     # 10 is the integral dl
+            n0['EE'][i] = (2 * np.pi)**2 / s1 /10**2     # 10 is the integral dl
+            #n0['BB'][i] = (2 * np.pi)**2 / s2 /10**2     # 10 is the integral dl
+            n0['TT'][i] = (2 * np.pi)**2 / s3 /10**2     # 10 is the integral dl
+            n0['TB'][i] = (2 * np.pi)**2 / s4 /10**2     # 10 is the integral dl
+            n0['TE'][i] = (2 * np.pi)**2 / s5 /10**2     # 10 is the integral dl
+            #data = np.column_stack(( C_EE(l1s), C_BB(l2s), feb))
+            #header = "ls, cee, cbb, feb" 
+            #output_name = "%s_power_%s.dat"%(Li, n0[i])
+            #np.savetxt(output_name, data, header=header)
+    return n0
+
+########################################################################################################################
+
+def Nadd(l, A=1, lp = 100, nL=1):
     nadd = A * (l/lp)**nL
-    return s2
+    return nadd
 
 
 ########################################################################################################################
