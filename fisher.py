@@ -203,7 +203,10 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
 
-        step_size = param_dict[ppp] * 0.01 #1 per cent for the original parameter.
+        if param_dict[ppp] == 0.:
+            step_size = 0.001 #some small number
+        else:
+            step_size = param_dict[ppp] * 0.01 #1 per cent for the original parameter.
         ppp_low_val, ppp_high_val = param_dict[ppp] - step_size, param_dict[ppp] + step_size
         if ppp == 'A_phi_sys':
             nl_mv_sys_low = get_nl_sys(ppp_low_val, alpha_phi_sys)
