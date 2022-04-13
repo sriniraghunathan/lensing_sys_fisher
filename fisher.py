@@ -173,7 +173,10 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
     A_phi_sys=float(param_dict['A_phi_sys'])
     alpha_phi_sys=float(param_dict['alpha_phi_sys'])
     #fit a power law for nl_mv_sys
-    nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
+    def get_nl_sys(A_phi_sys, alpha_phi_sys):
+        nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
+        return nl_mv_sys
+    nl_mv_sys = get_nl_sys(A_phi_sys, alpha_phi_sys)
     nl_dict['PP'] += nl_mv_sys
 
 
@@ -199,22 +202,17 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         cl_deriv_dict[ppp]['TE'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
+
+        step_size = param_dict[ppp] * 0.01 #1 per cent for the original parameter.
+        ppp_low_val, ppp_high_val = param_dict[ppp] - step_size, param_dict[ppp] + step_size
         if ppp == 'A_phi_sys':
-            cl_deriv_dict[ppp]['PP'] = nl_mv_sys /A_phi_sys #derivative is the same as the signal: d/dA (Ax) = x.
-
-        elif ppp == 'alpha_phi_sys': #compute derivative using finite difference method
-
-            #assume some step size (roughly 1 per cent of the fiducial value)
-            step_size = alpha_phi_sys * 0.01
-            alpha_phi_sys_low, alpha_phi_sys_high = alpha_phi_sys - step_size, alpha_phi_sys + step_size
-
-            #get the systematic by perturbing alphq_phi_sys_val 
-            nl_mv_sys_low = A_phi_sys * ((els/els_pivot)**alpha_phi_sys_low)
-            nl_mv_sys_high = A_phi_sys * ((els/els_pivot)**alpha_phi_sys_high)
-            nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
-            nl_mv_sys_der = nl_mv_sys_der * factor_phi_deflection #go back to deflection angle space
-
-            cl_deriv_dict[ppp]['PP'] = nl_mv_sys_der
+            nl_mv_sys_low = get_nl_sys(ppp_low_val, alpha_phi_sys)
+            nl_mv_sys_high = get_nl_sys(ppp_high_val, alpha_phi_sys)
+        elif ppp == 'alpha_phi_sys':
+            nl_mv_sys_low = get_nl_sys(A_phi_sys, ppp_low_val)
+            nl_mv_sys_high = get_nl_sys(A_phi_sys, ppp_high_val)
+        nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
+        nl_mv_sys_der = nl_mv_sys_der * factor_phi_deflection #go back to deflection angle space
 
     if debug:
         for ppp in params_for_lensing_sys_dic:
