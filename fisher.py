@@ -60,7 +60,7 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-params_to_constrain = ['As', 'neff']#, 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -83,6 +83,7 @@ else:
 #get/read the parameter file
 logline = '\tget/read the parameter file'; tools.write_log(logline)
 param_dict = tools.get_ini_param_dict(paramfile)
+print('The parameters used are:\n')
 print(param_dict)
 param_dict['Alens'] = Alens
 #exit()
@@ -166,7 +167,7 @@ if 'PP' in pspectra_to_use: #include lensing noise
 #add lensing systematic
 if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx per cent lensing N0 to be the systematic error
 
-    els_pivot=80
+    els_pivot=3000
     #compute the lensing systematic in Cl space.
     factor_phi_deflection = (els * (els+1) )**2./2./np.pi
     A_phi_sys=float(param_dict['A_phi_sys'])
@@ -228,9 +229,10 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         #sys.exit()
 
     #modify param_names to include lensing related systematic
-    print(param_names)
+    #print(param_names)
     param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
-    print(param_names)
+    print('The considered parameters are', param_names,'\n')
+    print("The noise level is %f"%(rms_map_T))
 ############################################################################################################
 
 ############################################################################################################
@@ -278,15 +280,18 @@ cov_mat = np.linalg.inv(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
 #extract parameter constraints
 if desired_param_arr is None:
     desired_param_arr = param_names
-for desired_param in desired_param_arr:
-    logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
-    pind = np.where(param_names == desired_param)[0][0]
-    pcntr1, pcntr2 = pind, pind
-    cov_inds_to_extract = [(pcntr1, pcntr1), (pcntr1, pcntr2), (pcntr2, pcntr1), (pcntr2, pcntr2)]
-    cov_extract = np.asarray( [cov_mat[ii] for ii in cov_inds_to_extract] ).reshape((2,2))
-    sigma = cov_extract[0,0]**0.5
-    opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
-    print(opline)
+with open('results.txt','w') as outfile:
+    outfile.write('sigma,value\n')
+    for desired_param in desired_param_arr:
+        logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
+        pind = np.where(param_names == desired_param)[0][0]
+        pcntr1, pcntr2 = pind, pind
+        cov_inds_to_extract = [(pcntr1, pcntr1), (pcntr1, pcntr2), (pcntr2, pcntr1), (pcntr2, pcntr2)]
+        cov_extract = np.asarray( [cov_mat[ii] for ii in cov_inds_to_extract] ).reshape((2,2))
+        sigma = cov_extract[0,0]**0.5
+        opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
+        print(opline)
+        outfile.write('sigma(%s),%g\n'%(desired_param, sigma))
 ############################################################################################################
 
 sys.exit()
