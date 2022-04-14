@@ -60,7 +60,7 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']#, 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -202,12 +202,12 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         cl_deriv_dict[ppp]['TE'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
         cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
-
-        if param_dict[ppp] == 0.:
+    
+        if float(param_dict[ppp]) == 0.:
             step_size = 0.001 #some small number
         else:
-            step_size = param_dict[ppp] * 0.01 #1 per cent for the original parameter.
-        ppp_low_val, ppp_high_val = param_dict[ppp] - step_size, param_dict[ppp] + step_size
+            step_size = float(param_dict[ppp]) * 0.01 #1 per cent for the original parameter.
+        ppp_low_val, ppp_high_val = float(param_dict[ppp]) - step_size, float(param_dict[ppp]) + step_size
         if ppp == 'A_phi_sys':
             nl_mv_sys_low = get_nl_sys(ppp_low_val, alpha_phi_sys)
             nl_mv_sys_high = get_nl_sys(ppp_high_val, alpha_phi_sys)
@@ -215,7 +215,7 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
             nl_mv_sys_low = get_nl_sys(A_phi_sys, ppp_low_val)
             nl_mv_sys_high = get_nl_sys(A_phi_sys, ppp_high_val)
         nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
-        nl_mv_sys_der = nl_mv_sys_der * factor_phi_deflection #go back to deflection angle space
+        cl_deriv_dict[ppp]['PP']  = nl_mv_sys_der # don't think this is needed * factor_phi_deflection 
 
     if debug:
         for ppp in params_for_lensing_sys_dic:

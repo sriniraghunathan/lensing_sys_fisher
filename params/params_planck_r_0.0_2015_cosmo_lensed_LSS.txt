@@ -20,7 +20,7 @@ Aphiphi = 1.
 
 rms_map_T=1
 
-A_phi_sys=1e-12
+A_phi_sys=1e-5
 alpha_phi_sys=-2
 
 mnu= 0.06
