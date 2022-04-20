@@ -5,6 +5,9 @@
 
 import numpy as np, scipy as sc, sys, argparse, os
 import tools
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
 
 
 ############################################################################################################
@@ -94,14 +97,18 @@ param_dict['Alens'] = Alens
 #please change to get the delensed spectra
 logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
 pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
-if (0):#debug:
-    ax = subplot(111, yscale = 'log')
+if (1):#debug:
+    ax = plt.subplot(111, yscale = 'log')
     dl_fac = els * (els+1)/2/np.pi
-    plot(els, dl_fac * cl_dict['TT'], 'black'); 
-    plot(els, dl_fac * cl_dict['EE'], 'darkred');
-    plot(els, dl_fac * cl_dict['TE'], 'orangered');
-    xlabel(r'Multipole $\ell$'); ylabel(r'D$_{\ell}$ [$\mu$K$^{2}$]')
-    show()
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.plot(els, dl_fac * cl_dict['EE'], 'darkred');
+    plt.plot(els, dl_fac * cl_dict['TE'], 'orangered');
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue');
+    plt.ylim(1e-3, 1e4)
+    #xlabel(r'Multipole $\ell$'); ylabel(r'D$_{\ell}$ [$\mu$K$^{2}$]')
+    #show()
+    print("here")
+    plt.savefig("power_camb2.png")
     #sys.exit()
 ############################################################################################################
 
@@ -218,7 +225,7 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         cl_deriv_dict[ppp]['PP']  = nl_mv_sys_der # don't think this is needed * factor_phi_deflection 
 
     if debug:
-        for ppp in params_for_lensing_sys_dic:
+        for ppp in params_for_lensing_sys_dic: ################bug no params_for_lensing_sys_dic
             to_plot = cl_deriv_dict[ppp]['PP']
 
             ax = subplot(111, yscale = 'log')
