@@ -113,8 +113,8 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     #add delensedCL
     if which_spectra == 'delensed_scalar':
         if param_dict['uK']:
-            powers['total'] *= 1e0
-            powers['unlensed_total'] *= 1e0
+            powers['total'] *= 1e12
+            powers['unlensed_total'] *= 1e12
         cl_phiphi, cl_Tphi, cl_Ephi = powers['lens_potential'].T
         cphifun = interpolate.interp1d(els, cl_phiphi)
         totCL=powers['total']
@@ -152,6 +152,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
         powers[which_spectra] = thyres[param_dict['min_l_limit']:, :]
         powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
+        powers[which_spectra] *= 1e-12
 
         '''
         delensed_dict,  delensedCL=get_delensed_from_lensed(nels, els, unlensedCL, totCL , cphifun, n0fun,  nlT, nlP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
@@ -679,6 +680,7 @@ def get_delensed_from_lensed(nels, els, cl_uns, cl_tots , cphi, n0, nl_TT, nl_PP
         l2s = l2s[idl]
         l1s_dot_L = l1xs*lx + l1ys*ly
         l1_cross_L = l1xs*ly - l1ys*lx
+        l1_cross_l2 = l1xs*l2ys - l1ys*l2xs
         l2s_dot_L = l2xs*lx + l2ys*ly
         l1v_dot_l2v = l1xs * l2xs + l1ys*l2ys
         l1l2 = l1s * l2s
