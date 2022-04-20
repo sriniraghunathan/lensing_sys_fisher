@@ -63,7 +63,7 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']#, 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -288,7 +288,7 @@ cov_mat = np.linalg.inv(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
 #extract parameter constraints
 if desired_param_arr is None:
     desired_param_arr = param_names
-with open('results.txt','w') as outfile:
+with open('results_%s.txt'%(which_spectra),'w') as outfile:
     outfile.write('sigma,value\n')
     for desired_param in desired_param_arr:
         logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
