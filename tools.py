@@ -161,7 +161,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         fundele = interpolate.interp1d(nels, delensed_dict['EE'])
         fundelb = interpolate.interp1d(nels, delensed_dict['BB'])
         fundelte = interpolate.interp1d(nels, delensed_dict['TE'])
-        data = np.column_stack((fundelt(els), fundele(els), fundelb(els), fundelte(els) ))
+        data = np.column_stack(( totCL[:,0] - fundelt(els), totCL[:,1]-fundele(els), fundelb(els), totCL[:,3] - fundelte(els) ))
         powers[which_spectra] = data
         powers[which_spectra] *= 1e-12
         #'''
@@ -693,10 +693,10 @@ def get_delensed_from_lensed(nels, els, cl_uns, cl_tots , cphi, n0, nl_TT, nl_PP
         wllb = l1v_dot_l2v * sin2phi
         wlle = l1v_dot_l2v * cos2phi
         wllt = l1v_dot_l2v
-        tn2 = wllt**2 * ct(l1s) * cphi(l2s) * (1-ct(l1s) / (ct(l1s)+nt(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s)))
+        tn2 = wllt**2 * ct(l1s) * cphi(l2s) * ct(l1s) / (ct(l1s)+nt(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
         bn2 = wllb**2 * ce(l1s) * cphi(l2s) * (1- ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s)))
-        en2 = wlle**2 * ce(l1s) * cphi(l2s) * (1-ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s)))
-        ten2 = wllt*wlle * te(l1s) * cphi(l2s) * (1-cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s)))
+        en2 = wlle**2 * ce(l1s) * cphi(l2s) * ce(l1s) / (ce(l1s)+ne(l1s)) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
+        ten2 = wllt*wlle * te(l1s) * cphi(l2s) * cphi(l2s) / (cphi(l2s)+n0(l2s)+Nadd(l2s))
         ts2 = np.sum(tn2)
         es2 = np.sum(en2)
         bs2 = np.sum(bn2)
