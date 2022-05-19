@@ -8,6 +8,8 @@ import tools
 import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
+from scipy import interpolate 
+from scipy.interpolate import interp1d
 
 
 ############################################################################################################
@@ -63,7 +65,8 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+#params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -92,11 +95,74 @@ param_dict['Alens'] = Alens
 #exit()
 ############################################################################################################
 
+
+############################################################################################################
+
+nl_dict = {}
+
+els, powerini = tools.get_ini_cmb_power(param_dict, raw_cl = 1)
+unlensedCL = powerini['unlensed_total']
+totCL = powerini['total']
+cl_phiphi, cl_Tphi, cl_Ephi = powerini['lens_potential'].T
+cphifun = interpolate.interp1d(els, cl_phiphi)
+rms_map_P = rms_map_T * 1.414
+Bl, nl_TT, nl_PP = tools.get_nl(els, rms_map_T, rms_map_P = rms_map_P, fwhm = fwhm_arcmins)
+nl_dict['TT'] = nl_TT
+nl_dict['EE'] = nl_PP
+nl_dict['TE'] = np.copy(nl_PP)*0.
+nl_dict['PP'] = np.zeros(len(nl_TT))
+
+if use_ilc_nl:
+    include_gal = 0
+    gal_mask = 3 #only valid if galaxy is included
+    if not include_gal:
+        nlfile = '%s/S4_ilc_galaxy0_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_AZ.npy' %(draft_results_folder)
+    else:
+        nlfile = '%s/S4_ilc_galaxy1_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_galmask%s_AZ.npy' %(draft_results_folder, gal_mask)
+        nl_dict = tools.get_nl_dict(nlfile, els)
+        nl_TT = nl_TT['TT']
+        nl_PP = nl_dict['EE']
+        nl_dict['PP'] = np.zeros(len(nl_TT))
+
+
+if which_spectra == "delensed_scalar":
+    nels = np.arange(els[0], els[-1]+100, 100)
+    n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
+    mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
+    data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
+    header = "els,n0s['EB'],n0s[q'EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv" 
+    output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rms_map_T, fwhm_arcmins)
+    np.savetxt(output_name, data, header=header)
+    param_dict['rms_map_T'] = rms_map_T
+    param_dict['rms_map_P'] = rms_map_P
+    param_dict['nlP'] = nl_PP
+    param_dict['nlT'] = nl_TT
+    param_dict['fwhm_arcmins'] = fwhm_arcmins
+    n0_els, n0_mv = nels, mv
+    nl_mv = interpolate.interp1d(nels, mv)
+    #nl_mv = np.interp(els, n0_els, n0_mv, left = 1e6, right = 1e6) #set noise of els beyond n0_els to some large number
+    nl_dict['PP'] = nl_mv(els)
+
+
+print('nl_dict: ', nl_dict)
+'''
+if 'PP' in pspectra_to_use: #include lensing noise
+    lensing_n0_fname = 'lensing_noise_curves/S4_ilc_galaxy0_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_AZ_lmin100_lmax5000_lmaxtt3000.npy'
+    lensing_n0_dict = np.load(lensing_n0_fname, allow_pickle=True, encoding='latin1').item()
+    n0_els, n0_mv = lensing_n0_dict['els'], lensing_n0_dict['Nl_MV'].real
+    n0_mv[np.isnan(n0_mv)] = 0.
+    nl_mv = np.interp(els, n0_els, n0_mv, left = 1e6, right = 1e6) #set noise of els beyond n0_els to some large number
+    nl_dict['PP'] = nl_mv
+'''
+#please change to get the delensed spectra    
+############################################################################################################
+
 ############################################################################################################
 #get fiducual LCDM power spectra computed using CAMB
-#please change to get the delensed spectra
+
 logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
 pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
+
 if (1):#debug:
     ax = plt.subplot(111, yscale = 'log')
     dl_fac = els * (els+1)/2/np.pi
@@ -134,41 +200,7 @@ if (0):#debug:
     #sys.exit()
 ############################################################################################################
 
-############################################################################################################
-#get nl
-logline = '\tget nl'; tools.write_log(logline)
-if not use_ilc_nl:
-    rms_map_P = rms_map_T * 1.414
-    Bl, nl_TT, nl_PP = tools.get_nl(els, rms_map_T, rms_map_P = rms_map_P, fwhm = fwhm_arcmins)
-    nl_dict = {}
-    nl_dict['TT'] = nl_TT
-    nl_dict['EE'] = nl_PP
-    nl_dict['TE'] = np.copy(nl_PP)*0.
-else:
-    include_gal = 0
-    gal_mask = 3 #only valid if galaxy is included
-    if not include_gal:
-        nlfile = '%s/S4_ilc_galaxy0_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_AZ.npy' %(draft_results_folder)
-    else:
-        nlfile = '%s/S4_ilc_galaxy1_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_galmask%s_AZ.npy' %(draft_results_folder, gal_mask)
-    nl_dict = tools.get_nl_dict(nlfile, els)
-
-if 'PP' in pspectra_to_use: #include lensing noise
-    #logline = '\t\tinclude lensing noise. Assume CMB-S4'; tools.write_log(logline)
-    '''
-    lensing_expname = 'cmbs4'
-    lensing_n0_fname = 'lensing_noise_curves/lensing_noise_curves_with_pol.npy'
-    lensing_n0_dict = np.load(lensing_n0_fname, allow_pickle=True, encoding='latin1').item()[lensing_expname]
-    print(lensing_n0_dict.keys())
-    n0_mv = lensing_n0_dict['Nl_MV'].real
-    '''
-    lensing_n0_fname = 'lensing_noise_curves/S4_ilc_galaxy0_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_AZ_lmin100_lmax5000_lmaxtt3000.npy'
-    lensing_n0_dict = np.load(lensing_n0_fname, allow_pickle=True, encoding='latin1').item()
-    n0_els, n0_mv = lensing_n0_dict['els'], lensing_n0_dict['Nl_MV'].real
-    n0_mv[np.isnan(n0_mv)] = 0.
-    nl_mv = np.interp(els, n0_els, n0_mv, left = 1e6, right = 1e6) #set noise of els beyond n0_els to some large number
-    nl_dict['PP'] = nl_mv
-############################################################################################################
+print('nl_dict: ', nl_dict)
 
 ############################################################################################################
 #add lensing systematic
@@ -184,6 +216,7 @@ if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx pe
         nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
         return nl_mv_sys
     nl_mv_sys = get_nl_sys(A_phi_sys, alpha_phi_sys)
+    print('nl_dict: ', nl_dict)
     nl_dict['PP'] += nl_mv_sys
 
 
@@ -288,21 +321,23 @@ cov_mat = np.linalg.inv(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
 #extract parameter constraints
 if desired_param_arr is None:
     desired_param_arr = param_names
-with open('results_%s.txt'%(which_spectra),'w') as outfile:
+with open('results_%s_%s.txt'%(which_spectra, rms_map_T),'w') as outfile:
     outfile.write('sigma,value\n')
     for desired_param in desired_param_arr:
         logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
         pind = np.where(param_names == desired_param)[0][0]
         pcntr1, pcntr2 = pind, pind
+        print('pind ',pind, 'pcntr1',pcntr1,'pcntr2',pcntr2)
         cov_inds_to_extract = [(pcntr1, pcntr1), (pcntr1, pcntr2), (pcntr2, pcntr1), (pcntr2, pcntr2)]
         cov_extract = np.asarray( [cov_mat[ii] for ii in cov_inds_to_extract] ).reshape((2,2))
+        print('cov_extract: ',cov_extract)
         sigma = cov_extract[0,0]**0.5
         opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
         print(opline)
         outfile.write('sigma(%s),%g\n'%(desired_param, sigma))
 ############################################################################################################
 
-sys.exit()
+#sys.exit()
 
 
 
