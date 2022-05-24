@@ -20,7 +20,8 @@ parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramf
 parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='lensed_scalar', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar']) # add delensed
 
 #reduce lensing amplitude by xx per cent. Roughly mimicking S4-Wide delensing.
-parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=0.3) 
+parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=1) 
+#parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=0.3) 
 
 parser.add_argument('-fsky', dest='fsky', action='store', help='fsky', type = float, default = 0.57)
 parser.add_argument('-include_lensing', dest='include_lensing', action='store', help='include_lensing', type = int, default = 1)
@@ -66,7 +67,8 @@ min_l_pol, max_l_pol = 30, 5000
 ############################################################################################################
 #cosmological parameters
 #params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
-params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']
+params_to_constrain = ['As', 'neff', 'tau', 'thetastar', 'mnu']
+#params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']
 ###params_to_constrain = ['As']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -122,11 +124,70 @@ if use_ilc_nl:
         nl_dict = tools.get_nl_dict(nlfile, els)
         nl_TT = nl_TT['TT']
         nl_PP = nl_dict['EE']
-        nl_dict['PP'] = np.zeros(len(nl_TT))
+
+'''
+#add lensing systematic
+if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx per cent lensing N0 to be the systematic error
+
+    els_pivot=3000
+    #compute the lensing systematic in Cl space.
+    factor_phi_deflection = (els * (els+1) )**2./2./np.pi
+    A_phi_sys=float(param_dict['A_phi_sys'])
+    alpha_phi_sys=float(param_dict['alpha_phi_sys'])
+    #fit a power law for nl_mv_sys
+    def get_nl_sys(A_phi_sys, alpha_phi_sys):
+        nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
+        return nl_mv_sys
+    nl_mv_sys = get_nl_sys(A_phi_sys, alpha_phi_sys)
+    print('nl_dict: ', nl_dict)
+    if which_spectra == "delensed_scalar":
+        nl_dict['PP'] += nl_mv_sys
+        
+        
+    for ppp in ['A_phi_sys','alpha_phi_sys']:
+        cl_deriv_dict[ppp] = {}
+        #derivatives w.r.t TT/EE/TE/Tphi/EPhi are all zero since this is a lensing related systematic
+        """
+        Ahhhh - will Tphi actually be zero if this is some kind of foreground related systematic?
+            CMB T x phi will be zero. But the total T will include foregrounds which could lead to non-zero Tphi(?)
+            ignore that for now
+        """
+
+        cl_deriv_dict[ppp]['TT'] = np.zeros_like(els)
+        cl_deriv_dict[ppp]['EE'] = np.zeros_like(els)
+        cl_deriv_dict[ppp]['TE'] = np.zeros_like(els)
+        cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
+        cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
+    
+        if float(param_dict[ppp]) == 0.:
+            step_size = 0.001 #some small number
+        else:
+            step_size = float(param_dict[ppp]) * 0.01 #1 per cent for the original parameter.
+        ppp_low_val, ppp_high_val = float(param_dict[ppp]) - step_size, float(param_dict[ppp]) + step_size
+        if ppp == 'A_phi_sys':
+            nl_mv_sys_low = get_nl_sys(ppp_low_val, alpha_phi_sys)
+            nl_mv_sys_high = get_nl_sys(ppp_high_val, alpha_phi_sys)
+        elif ppp == 'alpha_phi_sys':
+            nl_mv_sys_low = get_nl_sys(A_phi_sys, ppp_low_val)
+            nl_mv_sys_high = get_nl_sys(A_phi_sys, ppp_high_val)
+        nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
+        cl_deriv_dict[ppp]['PP']  = nl_mv_sys_der # don't think this is needed * factor_phi_deflection 
 
 
+    #modify param_names to include lensing related systematic
+    #print(param_names)
+    param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
+    print('The considered parameters are', param_names,'\n')
+    print("The noise level is %f"%(rms_map_T))
+'''
 if which_spectra == "delensed_scalar":
-    nels = np.arange(els[0], els[-1]+100, 100)
+    nels = np.arange(els[0], els[-1]+10, 100)
+    #La = np.arange(els[0], 50, 1)
+    #Lb = np.arange(50, 300, 10)
+    #Lc = np.arange(300, els[-1]+10, 100)
+    #L1 = np.append(La, Lb)
+    #L = np.append(L1, Lc)
+
     n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
     mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
     data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
@@ -142,6 +203,8 @@ if which_spectra == "delensed_scalar":
     nl_mv = interpolate.interp1d(nels, mv)
     #nl_mv = np.interp(els, n0_els, n0_mv, left = 1e6, right = 1e6) #set noise of els beyond n0_els to some large number
     nl_dict['PP'] = nl_mv(els)
+
+
 
 
 print('nl_dict: ', nl_dict)
@@ -201,79 +264,9 @@ if (0):#debug:
 ############################################################################################################
 
 print('nl_dict: ', nl_dict)
+print(' cl_deriv_dict :', cl_deriv_dict)
 
 ############################################################################################################
-#add lensing systematic
-if include_lensing and float(param_dict['A_phi_sys'])> 0.: #assume roughly xx per cent lensing N0 to be the systematic error
-
-    els_pivot=3000
-    #compute the lensing systematic in Cl space.
-    factor_phi_deflection = (els * (els+1) )**2./2./np.pi
-    A_phi_sys=float(param_dict['A_phi_sys'])
-    alpha_phi_sys=float(param_dict['alpha_phi_sys'])
-    #fit a power law for nl_mv_sys
-    def get_nl_sys(A_phi_sys, alpha_phi_sys):
-        nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection
-        return nl_mv_sys
-    nl_mv_sys = get_nl_sys(A_phi_sys, alpha_phi_sys)
-    print('nl_dict: ', nl_dict)
-    nl_dict['PP'] += nl_mv_sys
-
-
-    if debug:
-        ax = subplot(111, yscale = 'log')
-        plot(els, nl_mv, 'k-', label = r'N0')
-        plot(els, nl_mv_sys, ls = '-', color = 'orangered', label = r'Systematic')
-        xlabel(r'Multipole $\ell$'); ylabel(r'$[L(L+1)]^2 C_L^{\phi\phi} / 2\pi$')
-        show(); #sys.exit()
-
-    #now we must compute the derivatives for the two parameters governing the lensing systematic    
-    for ppp in ['A_phi_sys','alpha_phi_sys']:
-        cl_deriv_dict[ppp] = {}
-        #derivatives w.r.t TT/EE/TE/Tphi/EPhi are all zero since this is a lensing related systematic
-        """
-        Ahhhh - will Tphi actually be zero if this is some kind of foreground related systematic?
-            CMB T x phi will be zero. But the total T will include foregrounds which could lead to non-zero Tphi(?)
-            ignore that for now
-        """
-
-        cl_deriv_dict[ppp]['TT'] = np.zeros_like(els)
-        cl_deriv_dict[ppp]['EE'] = np.zeros_like(els)
-        cl_deriv_dict[ppp]['TE'] = np.zeros_like(els)
-        cl_deriv_dict[ppp]['Tphi'] = np.zeros_like(els)
-        cl_deriv_dict[ppp]['Ephi'] = np.zeros_like(els)
-    
-        if float(param_dict[ppp]) == 0.:
-            step_size = 0.001 #some small number
-        else:
-            step_size = float(param_dict[ppp]) * 0.01 #1 per cent for the original parameter.
-        ppp_low_val, ppp_high_val = float(param_dict[ppp]) - step_size, float(param_dict[ppp]) + step_size
-        if ppp == 'A_phi_sys':
-            nl_mv_sys_low = get_nl_sys(ppp_low_val, alpha_phi_sys)
-            nl_mv_sys_high = get_nl_sys(ppp_high_val, alpha_phi_sys)
-        elif ppp == 'alpha_phi_sys':
-            nl_mv_sys_low = get_nl_sys(A_phi_sys, ppp_low_val)
-            nl_mv_sys_high = get_nl_sys(A_phi_sys, ppp_high_val)
-        nl_mv_sys_der = (nl_mv_sys_high - nl_mv_sys_low) / ( 2 * step_size)
-        cl_deriv_dict[ppp]['PP']  = nl_mv_sys_der # don't think this is needed * factor_phi_deflection 
-
-    if debug:
-        for ppp in params_for_lensing_sys_dic: ################bug no params_for_lensing_sys_dic
-            to_plot = cl_deriv_dict[ppp]['PP']
-
-            ax = subplot(111, yscale = 'log')
-            plot(els, to_plot, 'k-')
-            neg_inds = np.where(to_plot<0)
-            plot(els[neg_inds], abs(to_plot[neg_inds]), 'k--')
-            xlabel(r'Multipole $\ell$'); ylabel(r'd$C_{\ell}^{\rm dd}$/d$%s$' %(ppp.replace('_','\_')))
-            show(); 
-        #sys.exit()
-
-    #modify param_names to include lensing related systematic
-    #print(param_names)
-    param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
-    print('The considered parameters are', param_names,'\n')
-    print("The noise level is %f"%(rms_map_T))
 ############################################################################################################
 
 ############################################################################################################
@@ -289,6 +282,7 @@ F_mat = tools.get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, param_names, psp
             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
 #print(F_mat); sys.exit()
 ############################################################################################################
+print(' F_mat: ', F_mat)
 
 ############################################################################################################
 #add fsky to Fisher

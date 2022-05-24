@@ -46,6 +46,67 @@ def get_ini_param_dict(fpath = 'params/params_planck_r_0.0_2015_cosmo_lensed_LSS
 
     return param_dict
 
+
+########################################################################################################################
+def get_ini_cmb_power(param_dict, raw_cl = 1):
+
+    """
+    set CAMB cosmology and get power spectra
+    """
+
+    import camb
+    from camb import model, initialpower
+    from camb import correlations
+    
+    param_dict_to_use = copy.deepcopy(param_dict)
+
+    ########################
+    #set all CAMB parameters
+    #pars = camb.CAMBparams()
+    pars = camb.CAMBparams(max_l_tensor = param_dict_to_use['max_l_tensor'], max_eta_k_tensor = param_dict_to_use['max_eta_k_tensor'])
+    pars.set_accuracy(AccuracyBoost = param_dict_to_use['AccuracyBoost'], lAccuracyBoost = param_dict_to_use['lAccuracyBoost'], 
+        lSampleBoost = param_dict_to_use['lSampleBoost'],
+        DoLateRadTruncation = param_dict_to_use['do_late_rad_truncation'])
+    pars.set_dark_energy(param_dict_to_use['ws'])
+    pars.set_cosmology(thetastar=param_dict_to_use['thetastar'], ombh2=param_dict_to_use['ombh2'], omch2=param_dict_to_use['omch2'], nnu = param_dict_to_use['neff'], 
+        mnu=param_dict_to_use['mnu'], omk=param_dict_to_use['omk'], tau=param_dict_to_use['tau'], YHe = param_dict_to_use['YHe'], Alens = param_dict_to_use['Alens'],
+        num_massive_neutrinos = param_dict_to_use['num_nu_massive'])
+    pars.set_for_lmax(int(param_dict_to_use['max_l_limit']), lens_potential_accuracy=param_dict_to_use['lens_potential_accuracy'],
+        max_eta_k = param_dict_to_use['max_eta_k'])
+    pars.InitPower.set_params(ns=param_dict_to_use['ns'], r=param_dict_to_use['r'], As = param_dict_to_use['As'])
+    ########################
+
+    ########################
+    #get results
+    results = camb.get_results(pars)
+    ########################
+
+    ########################
+    #get dictionary of CAMB power spectra
+    powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = raw_cl)#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
+    ########################
+
+    ########################
+    #get only the required ell range since powerspectra start from ell=0 by default
+    for keyname in powers:
+        powers[keyname] = powers[keyname][param_dict['min_l_limit']:, :]
+    els = np.arange(param_dict['min_l_limit'], param_dict['max_l_limit']+1)
+    ########################
+
+
+    if param_dict['uK']:
+        powers['total'] *= 1e12
+        powers['unlensed_total'] *= 1e12
+        cl_phiphi, cl_Tphi, cl_Ephi = powers['lens_potential'].T
+        cphifun = interpolate.interp1d(els, cl_phiphi)
+        totCL=powers['total']
+        unlensedCL=powers['unlensed_total']
+
+        bl, nlT, nlP = get_nl(els, 2., None, 1.)
+
+    return els, powers
+    #return els
+
 ########################################################################################################################
 def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True):
 
@@ -63,9 +124,14 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         param_dict_mod = param_dict.copy()
 
         for keyname in step_size_dict_for_derivatives.keys():
+            print('keyname: ', keyname)
+            print('keyname param: ', param_dict_mod[keyname])
+            print(' step_size_dict_for_derivatives ', step_size_dict_for_derivatives)
+            print(' step_size_dict_for_derivatives value', step_size_dict_for_derivatives[keyname])
             if high_low == 0:
                 logline = '\t\tModifying %s for derivative now: (%s + %s)' %(keyname, param_dict_mod[keyname], step_size_dict_for_derivatives[keyname])
                 param_dict_mod[keyname] = param_dict_mod[keyname] + step_size_dict_for_derivatives[keyname]
+                
             else:
                 logline = '\t\tModifying %s for derivative now: (%s - %s)' %(keyname, param_dict_mod[keyname], step_size_dict_for_derivatives[keyname])
                 param_dict_mod[keyname] = param_dict_mod[keyname] - step_size_dict_for_derivatives[keyname]
@@ -121,10 +187,23 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         unlensedCL=powers['unlensed_total']
         print('lenels ',len(els))
         print('lenecl ',unlensedCL.shape)
+        
+        rmsT = param_dict['rms_map_T']
+        rmsP = param_dict['rms_map_P']
+        nlT = param_dict['nlT']
+        nlP = param_dict['nlP']
+        fwhm = param_dict['fwhm_arcmins']
+        A_phi_sys_value=param_dict_to_use['A_phi_sys']
+        alpha_phi_sys_value=param_dict_to_use['alpha_phi_sys']
+        #A_phi_sys = param_dict['A_phi_sys']
+        #alpha_phi_sys = param_dict['alpha_phi_sys']
+        output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
 
+        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rmsT, fwhm))
+        nels = n0s[:,0]
+        mv = n0s[:,-1]
+        '''
         bl, nlT, nlP = get_nl(els, 2., None, 1.)
-
-        #n0s = np.loadtxt('params/generate_n0s.dat') # use this n0 as a test
         nels = np.arange(els[0], els[-1]+100, 100)
         n0s = calculate_n0(nels, els, unlensedCL, totCL, nlT, nlP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
@@ -134,11 +213,13 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         np.savetxt(output_name, data, header=header)
         #rhosq = cphifun(els) / (cphifun(els) + n0fun(els) + Nadd(els))
         #rhosqfun = interpolate.interp1d(els, rhosq)
-
+        '''
         n0fun = interpolate.interp1d(nels, mv)
 
-        winf = cphifun(els) / (n0fun(els) + cphifun(els))
-
+        winf = cphifun(els) / (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
+        print('cphi: ',cphifun(els))
+        print('n0: ', n0fun(els))
+        print('nlsys: ', get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
         clpp = cl_phiphi * winf**2 * (els*(els+1))**2/2/np.pi
 
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
@@ -154,7 +235,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
         powers[which_spectra] *= 1e-12
 
-        #'''
+        '''
         delensed_dict,  delensedCL=get_delensed_from_lensed(nels, els, unlensedCL, totCL , cphifun, n0fun,  nlT, nlP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
         #delensed_dict,  delensedCL=get_delensed_from_lensed_cvltion(els, unlensedCL, totCL , cphifun, rhosqfun,  nlT, nlP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
         fundelt = interpolate.interp1d(nels, delensed_dict['TT'])
@@ -164,7 +245,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         data = np.column_stack(( totCL[:,0] - fundelt(els), totCL[:,1]-fundele(els), fundelb(els), totCL[:,3] - fundelte(els) ))
         powers[which_spectra] = data
         powers[which_spectra] *= 1e-12
-        #'''
+        '''
     ########################
 
 
@@ -253,14 +334,16 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
     'ombh2' : 0.0008,
     'omch2' : 0.0030,
     'tau' : 0.020,
-    'As' : 0.1e-9,
+    'As' : 0.1e-11,
     'ns' : 0.010,
     ###'ws' : -1e-2,
     'neff': 0.080,
     'mnu': 0.02,
+    'A_phi_sys': 1e-20,
+    'alpha_phi_sys': -2e-2,
     ###'YHe': 0.005, 
-    ###'Alens': 1e-2, 
-    ###'Aphiphi': 1e-2, 
+    #'Alens': 1e-2, 
+    #'Aphiphi': 1e-2, 
     'thetastar': 0.000050, 
     }
     ref_step_size_dict_for_derivatives = {}
@@ -569,6 +652,15 @@ def get_nl(els, rms_map_T, rms_map_P = None, fwhm = None, Bl = None, elknee_t = 
 
 ########################################################################################################################
 
+
+
+def get_nl_sys(els, A_phi_sys, alpha_phi_sys, els_pivot = 3000):
+    factor_phi_deflection = (els * (els+1) )**2./2./np.pi
+    nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection**0
+    return nl_mv_sys
+
+########################################################################################################################
+
 def fisher_forecast_Aphiphi(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l = 0, max_l = 6000):
 
     npar = len(params)
@@ -840,10 +932,10 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
     nt = interpolate.interp1d(els, nl_TT) #unlensed
     ne = interpolate.interp1d(els, nl_PP) #unlensed
     cmbf = cmb_f(cl_tots, cl_uns, els)
-    C_BB = interpolate.interp1d(els, clt_tot + nl_TT) #observe
+    C_BB = interpolate.interp1d(els, clb_tot + nl_PP) #observe
     C_EE = interpolate.interp1d(els, cle_tot + nl_PP) #observe
-    C_TT = interpolate.interp1d(els, clb_tot + nl_PP) #observe
-    C_TE = interpolate.interp1d(els, clt_tot) #observe
+    C_TT = interpolate.interp1d(els, clt_tot + nl_TT) #observe
+    C_TE = interpolate.interp1d(els, clte_tot) #observe
     for i, Li in enumerate(nels):
         if Li%1000 == 2:
             print('Li ',Li)
