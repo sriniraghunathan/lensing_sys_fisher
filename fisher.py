@@ -114,20 +114,21 @@ rms_map_P = rms_map_T * 1.414
 Bl, nl_TT, nl_PP = tools.get_nl(els, rms_map_T, rms_map_P = rms_map_P, fwhm = fwhm_arcmins)
 nl_dict['TT'] = nl_TT
 nl_dict['EE'] = nl_PP
-nl_dict['TE'] = np.copy(nl_PP)
-#nl_dict['TE'] = np.copy(nl_PP)*0.
+#nl_dict['TE'] = np.copy(nl_PP)
+nl_dict['TE'] = np.copy(nl_PP)*0.
 nl_dict['PP'] = np.zeros(len(nl_TT))
 
 if use_ilc_nl:
-    include_gal = 0
+    include_gal = 1
     gal_mask = 3 #only valid if galaxy is included
     if not include_gal:
         nlfile = '%s/S4_ilc_galaxy0_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_AZ.npy' %(draft_results_folder)
     else:
         nlfile = '%s/S4_ilc_galaxy1_27-39-93-145-225-278_TT-EE-TE_lf2-mf12-hf5_galmask%s_AZ.npy' %(draft_results_folder, gal_mask)
-        nl_dict = tools.get_nl_dict(nlfile, els)
-        nl_TT = nl_TT['TT']
-        nl_PP = nl_dict['EE']
+    nl_dict = tools.get_nl_dict(nlfile, els)
+    #nl_TT = nl_TT['TT']
+    nl_TT = nl_dict['TT']
+    nl_PP = nl_dict['EE']
 
 '''
 #add lensing systematic
