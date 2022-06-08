@@ -4,6 +4,7 @@ from scipy import linalg
 import copy
 from scipy import interpolate 
 from scipy.interpolate import interp1d
+from itertools import combinations
 
 ########################################################################################################################
 def write_log(logline, log_file = None):
@@ -337,7 +338,8 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
     'As' : 0.1e-11,
     'ns' : 0.010,
     ###'ws' : -1e-2,
-    'neff': 0.080,
+    ###'neff': 0.080,
+    'neff': 0.0080,
     'mnu': 0.02,
     'A_phi_sys': 1e-20,
     'alpha_phi_sys': -2e-2,
@@ -403,9 +405,37 @@ def get_delta_cl(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
         elif XX == 'PP' and include_lensing:
             nl = nl_dict['PP']
         cl = cl_dict[XX]
-        delta_cl_dict[XX] = np.sqrt(2./ (2.*els + 1.) / fsky ) * (cl + nl)
+        if XX == 'TE':
+            delta_cl_dict[XX] = np.sqrt(2./ (2.*els + 1.) / fsky ) * ((cl_dict['TT'] + nl_dict['TT'])*(cl_dict['EE'] + nl_dict['EE'])+cl_dict['TE']**2)**0.5
+        else:
+            delta_cl_dict[XX] = np.sqrt(2./ (2.*els + 1.) / fsky ) * (cl + nl)
 
     return delta_cl_dict
+
+########################################################################################################################
+
+def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
+    """
+    get Delta_cl (sample variance)
+    """
+    clname = ['TT','EE','TE']
+    nl_dict['ET'] = nl_dict['TE']
+    cl_dict['ET'] = cl_dict['TE']
+    #if include_lensing:
+    #clname = ['TT','EE','TE','PP']
+    #comb2 = list(combinations(clname, 2))
+
+    cov_dict = {}
+    for i, namei in enumerate(clname):
+        for j, namej in enumerate(clname):
+            pair1 = namei[0]+namej[0]
+            pair2 = namei[1]+namej[1]
+            pair3 = namei[0]+namej[1]
+            pair4 = namei[1]+namej[0]
+            totname = namei + namej
+            covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
+            cov_dict[totname] = covij
+    return cov_dict
 
 ########################################################################################################################
 
@@ -540,6 +570,99 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
             fprime2_l_vec = get_cov(TT_der2, EE_der2, TE_der2, PP_der2, TPhi_der2, EPhi_der2)
 
             curr_val = np.trace( np.dot( np.dot(inv_COV_mat_l, fprime1_l_vec), np.dot(inv_COV_mat_l, fprime2_l_vec) ) )
+
+            F[pcnt2,pcnt] += curr_val
+
+    return F   
+########################################################################################################################
+
+def get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None):
+
+    if min_l_temp is None: min_l_temp = 0
+    if max_l_temp is None: max_l_temp = 10000
+
+    if min_l_pol is None: min_l_pol = 0
+    if max_l_pol is None: max_l_pol = 10000
+
+    npar = len(params)
+    F = np.zeros([npar,npar])
+    #els = np.arange( len( delta_cl_dict.values()[0] ) )
+
+    with_lensing = 0
+    if 'PP' in pspectra_to_use:
+        with_lensing = 1
+
+    all_pspectra_to_use = []
+    for tmp in pspectra_to_use:
+        if isinstance(tmp, list):      
+            all_pspectra_to_use.extend(tmp)
+        else:
+            all_pspectra_to_use.append(tmp)
+
+    TT_filter = np.ones(len(els))
+    TT_filter[0:3000] = 1
+
+    for lcntr, l in enumerate( els ):
+
+        TT, EE, TE = 0., 0., 0.
+        Tphi = Ephi = PP = 0.
+        TTTT = delta_cl_dict['TTTT'][lcntr]
+        TTEE = delta_cl_dict['TTEE'][lcntr]
+        TTTE = delta_cl_dict['TTTE'][lcntr]
+        EEEE = delta_cl_dict['EEEE'][lcntr]
+        EETE = delta_cl_dict['EETE'][lcntr]
+        TETE = delta_cl_dict['TETE'][lcntr]
+
+        ##############################################################################
+        #get covariance matrix and its inverse
+        
+        COV_mat_l = np.zeros((len(delta_cl_dict)))
+        for i, poweri in enumerate(delta_cl_dict):
+            COV_mat_l[i] = delta_cl_dict[poweri][lcntr]
+            #clpi = delta_cl_dict[poweri]
+        COV_mat_l = np.mat(COV_mat_l.reshape(3,3))
+        inv_COV_mat_l = linalg.pinv2(COV_mat_l)
+
+        ##############################################################################
+        #get the parameter combinations
+        param_combinations = []
+        for pcnt,p in enumerate(params):
+            for pcnt2,p2 in enumerate(params):
+                ##if [p2,p,pcnt2,pcnt] in param_combinations: continue
+                param_combinations.append([p,p2, pcnt, pcnt2])
+
+        ##############################################################################
+
+        for (p,p2, pcnt, pcnt2) in param_combinations:
+
+
+            TT_der1, EE_der1, TE_der1 = 0., 0., 0.
+            TT_der2, EE_der2, TE_der2 = 0., 0., 0.
+
+            if 'TT' in cl_deriv_dict[p]:
+                TT_der1 = cl_deriv_dict[p]['TT'][lcntr]*TT_filter[lcntr]
+                TT_der2 = cl_deriv_dict[p2]['TT'][lcntr]*TT_filter[lcntr]
+            if 'EE' in cl_deriv_dict[p]:
+                EE_der1 = cl_deriv_dict[p]['EE'][lcntr]
+                EE_der2 = cl_deriv_dict[p2]['EE'][lcntr]
+            if 'TE' in cl_deriv_dict[p]:
+                TE_der1 = cl_deriv_dict[p]['TE'][lcntr]
+                TE_der2 = cl_deriv_dict[p2]['TE'][lcntr]
+
+
+            if with_lensing:
+                PP_der1, TPhi_der1, EPhi_der1 = cl_deriv_dict[p]['PP'][lcntr], cl_deriv_dict[p]['Tphi'][lcntr], cl_deriv_dict[p]['Ephi'][lcntr]
+                PP_der2, TPhi_der2, EPhi_der2 = cl_deriv_dict[p2]['PP'][lcntr], cl_deriv_dict[p2]['Tphi'][lcntr], cl_deriv_dict[p2]['Ephi'][lcntr]
+            else:
+                PP_der1 = PP_der2 = 0.
+                TPhi_der1 = TPhi_der2 = 0. 
+                EPhi_der1 = EPhi_der2 = 0.
+
+
+            fprime1_l_vec = np.array((TT_der1, EE_der1, TE_der1))
+            fprime2_l_vec = np.array((TT_der2, EE_der2, TE_der2))
+
+            curr_val = np.einsum('i,ij,j->', fprime1_l_vec, inv_COV_mat_l, fprime2_l_vec)
 
             F[pcnt2,pcnt] += curr_val
 
