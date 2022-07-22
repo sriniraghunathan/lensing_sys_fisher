@@ -84,7 +84,7 @@ def get_ini_cmb_power(param_dict, raw_cl = 1):
 
     ########################
     #get dictionary of CAMB power spectra
-    powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = raw_cl)#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
+    powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = raw_cl, CMB_unit='muK')#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
     ########################
 
     ########################
@@ -96,8 +96,8 @@ def get_ini_cmb_power(param_dict, raw_cl = 1):
 
 
     if param_dict['uK']:
-        powers['total'] *= 1e12
-        powers['unlensed_total'] *= 1e12
+        #powers['total'] *= 1e12
+        #powers['unlensed_total'] *= 1e12
         cl_phiphi, cl_Tphi, cl_Ephi = powers['lens_potential'].T
         cphifun = interpolate.interp1d(els, cl_phiphi)
         totCL=powers['total']
@@ -164,7 +164,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
     ########################
     #get dictionary of CAMB power spectra
-    powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = raw_cl)#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
+    powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = raw_cl, CMB_unit='muK')#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
     ########################
 
     ########################
@@ -179,9 +179,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     ########################
     #add delensedCL
     if which_spectra == 'delensed_scalar':
-        if param_dict['uK']:
-            powers['total'] *= 1e12
-            powers['unlensed_total'] *= 1e12
+        #if param_dict['uK']:
+         #   powers['total'] *= 1e12
+          #  powers['unlensed_total'] *= 1e12
         cl_phiphi, cl_Tphi, cl_Ephi = powers['lens_potential'].T
         cphifun = interpolate.interp1d(els, cl_phiphi)
         totCL=powers['total']
@@ -221,7 +221,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         print('cphi: ',cphifun(els))
         print('n0: ', n0fun(els))
         print('nlsys: ', get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
-        clpp = cl_phiphi * winf**2 * (els*(els+1))**2/2/np.pi
+        clpp = cl_phiphi * winf**1 * (els*(els+1))**2/2/np.pi
 
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
@@ -231,10 +231,15 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         #thyrest = thyres[:,0]
         #thyresb = thyres[:,2]
         #thyreste = thyres[:,3]
-
-        powers[which_spectra] = thyres[param_dict['min_l_limit']:, :]
-        powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
-        powers[which_spectra] *= 1e-12
+        
+        #test_a_param
+        test_a_param = 0
+        if not test_a_param:
+            powers[which_spectra] = thyres[param_dict['min_l_limit']:, :]
+            powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
+        else:
+            powers[which_spectra] = (unlensedCL + totCL)/2
+        #powers[which_spectra] *= 1e-12
 
         '''
         delensed_dict,  delensedCL=get_delensed_from_lensed(nels, els, unlensedCL, totCL , cphifun, n0fun,  nlT, nlP, dimx = 1024, dimy = 1024, fftd = 1./60/180)
@@ -260,13 +265,14 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     ########################    
     #Tcmb factor
     if pars.OutputNormalization == 1:
-        powers[which_spectra] = param_dict['T_cmb']**2. *  powers[which_spectra]
+        powers[which_spectra] = param_dict['T_cmb']**0. *  powers[which_spectra]
+        #powers[which_spectra] = param_dict['T_cmb']**2. *  powers[which_spectra]
     ########################
 
     ########################
     #K or uK
-    if param_dict['uK']:
-        powers[which_spectra] *= 1e12
+    #if param_dict['uK']:
+        #powers[which_spectra] *= 1e12
     ########################        
 
     cl_tt, cl_ee, cl_bb, cl_te = powers[which_spectra].T
@@ -334,13 +340,15 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
     step_size_dict_for_derivatives = {\
     'ombh2' : 0.0008,
     'omch2' : 0.0030,
-    'tau' : 0.020,
-    'As' : 0.1e-11,
+    ###'tau' : 0.020,
+    'tau':0.0002,
+    'As': 0.1e-11,
     'ns' : 0.010,
     ###'ws' : -1e-2,
     ###'neff': 0.080,
     'neff': 0.0080,
-    'mnu': 0.02,
+    ###'mnu': 0.02,
+    'mnu':0.0006,
     'A_phi_sys': 1e-20,
     'alpha_phi_sys': -2e-2,
     ###'YHe': 0.005, 
@@ -353,6 +361,55 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
         if p not in params_to_constrain: continue
         ref_step_size_dict_for_derivatives[p] = step_size_dict_for_derivatives[p]
     return ref_step_size_dict_for_derivatives
+
+
+########################################################################################################################
+def get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, nl_dict, Ls_to_get, percent=0.05):
+    """
+    #CAlculate dC^xx/dC^phiphi
+    """
+    diff_dict = {}
+    import camb
+    from camb import model, initialpower
+    from camb import correlations
+
+    if which_spectra == "unlensed_scalar":
+        diff_dict = {}
+
+    elif which_spectra == "lensed_scalar":
+        cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
+        cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
+        clpp = np.insert(cl_phiphi, 0, np.zeros(2), axis = 0)
+        thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
+        diff = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
+        for i, Li in enumerate(Ls_to_get):
+            clpp[Li] = clpp[Li]*(1+percent)
+            thyresi = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
+            diff[i] = (thyresi - thyres0)/(clpp[Li]*percent)
+        diff_dict['TT'] = diff[:, 2:, 0] * 2 * np.pi / (els * (els + 1 ))
+        diff_dict['EE'] = diff[:, 2:, 1] * 2 * np.pi / (els * (els + 1 ))
+        diff_dict['TE'] = diff[:, 2:, 2] * 2 * np.pi / (els * (els + 1 ))
+
+    elif which_spectra == "delensed_scalar":
+        cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
+        cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
+        winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
+        clpp = cl_phiphi * winf0**1 * (els*(els+1))**2/2/np.pi
+        clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
+        thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
+        diff = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
+        for i, Li in enumerate(Ls_to_get):
+            clpp[Li-2] = cl_phiphi[Li-2]*(1+percent)
+            winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
+            clpp = cl_phiphi * winf**1 * (els*(els+1))**2/2/np.pi
+            clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
+            thyresi = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
+            diff[i] = (thyresi - thyres0)/(clpp[Li]*percent)
+        
+        diff_dict['TT'] = diff[:, 2:, 0] * 2 * np.pi / (els * (els + 1 ))
+        diff_dict['EE'] = diff[:, 2:, 1] * 2 * np.pi / (els * (els + 1 ))
+        diff_dict['TE'] = diff[:, 2:, 2] * 2 * np.pi / (els * (els + 1 ))
+    return diff_dict
 
 ########################################################################################################################
 def get_nl_dict(nlfile, els):
@@ -436,6 +493,29 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
     return cov_dict
+
+
+########################################################################################################################
+
+def get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diffphi, delta_cl_dict, els, cl_phiphi, nl_dict, fsky = 1.):
+    """
+    get non_gaussian part for Delta_cl (sample variance)
+    """
+    cov_nongaussian = {}
+    phi_at_ls_total = cl_phiphi[Ls_to_get-2] + nl_dict['PP'][Ls_to_get-2] * 2/fsky / (2.*els[Ls_to_get-2] + 1)
+    
+    dl = Ls_to_get[1] - Ls_to_get[0]
+    if which_spectra == "unlensed_scalar":
+        cov_nongaussian = {}
+    else:
+        clname = ['TT','EE','TE']
+        for i, namei in enumerate(clname):
+            for j, namej in enumerate(clname):
+                totname = namei + namej
+                covij = np.einsum('ai,a,aj->ij', diffphi[namei], phi_at_ls_total**2 , diffphi[namej])
+                cov_nongaussian[totname] = covij*dl
+
+    return cov_nongaussian
 
 ########################################################################################################################
 
@@ -576,7 +656,7 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
     return F   
 ########################################################################################################################
 
-def get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None):
+def get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None, delta_cl_dict_nongau = None):
 
     if min_l_temp is None: min_l_temp = 0
     if max_l_temp is None: max_l_temp = 10000
@@ -667,6 +747,98 @@ def get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
             F[pcnt2,pcnt] += curr_val
 
     return F   
+########################################################################################################################
+
+def get_fisher_mat3(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None, delta_cl_dict_nongau = None):
+
+    if min_l_temp is None: min_l_temp = 0
+    if max_l_temp is None: max_l_temp = 10000
+
+    if min_l_pol is None: min_l_pol = 0
+    if max_l_pol is None: max_l_pol = 10000
+
+    npar = len(params)
+    F = np.zeros([npar,npar])
+    F2 = np.zeros([npar,npar])
+    F_nongau = np.zeros([npar,npar])
+    #els = np.arange( len( delta_cl_dict.values()[0] ) )
+
+    with_lensing = 0
+    if 'PP' in pspectra_to_use:
+        with_lensing = 1
+
+    all_pspectra_to_use = []
+    for tmp in pspectra_to_use:
+        if isinstance(tmp, list):      
+            all_pspectra_to_use.extend(tmp)
+        else:
+            all_pspectra_to_use.append(tmp)
+
+    TT_filter = np.ones(len(els))
+    TT_filter[0:3000] = 1
+
+    clname = ['TT','EE','TE']
+
+    cov_dict = {}
+    covmat = [1./delta_cl_dict[i] for i in delta_cl_dict]
+    covmat = np.asarray(covmat)
+    covmat = covmat.reshape(3,3,len(els))
+
+    COV_mat_l = [0]*(len(delta_cl_dict))
+    for i, poweri in enumerate(delta_cl_dict):
+        COV_mat_l[i] = delta_cl_dict[poweri]
+    
+    COV_mat_l = np.asarray(COV_mat_l).reshape(3,3,len(els))
+    covmat2 = 1./COV_mat_l
+    inv_COV_mat_l = np.zeros(COV_mat_l.shape)
+    for i in np.arange(len(els)):
+        inv_COV_mat_l[:,:,i] = linalg.pinv2(COV_mat_l[:,:,i])
+    #inv_COV_mat_l = linalg.pinv2(COV_mat_l)
+    
+    for pcnt,p in enumerate(params):
+        for pcnt2,p2 in enumerate(params):
+            TT_der1 = cl_deriv_dict[p]['TT']*TT_filter
+            TT_der2 = cl_deriv_dict[p2]['TT']*TT_filter
+            EE_der1 = cl_deriv_dict[p]['EE']
+            EE_der2 = cl_deriv_dict[p2]['EE']
+            TE_der1 = cl_deriv_dict[p]['TE']
+            TE_der2 = cl_deriv_dict[p2]['TE']
+            vect1 = np.array((TT_der1, EE_der1, TE_der1))
+            vect2 = np.array((TT_der2, EE_der2, TE_der2))
+
+            fij = np.einsum('il, ijl, jl->', vect1, covmat, vect2)
+            fij2 = np.einsum('il, ijl, jl->', vect1, covmat2, vect2)
+            fgij = np.einsum('il, ijl, jl->', vect1, inv_COV_mat_l, vect2)
+            F[pcnt, pcnt2] = fij
+            F2[pcnt, pcnt2] = fij2
+            F_nongau[pcnt, pcnt2] = fgij
+
+
+    if delta_cl_dict_nongau is not None:        
+        cov_mat = [np.asmatrix(delta_cl_dict_nongau[i]) for i in delta_cl_dict_nongau]
+        cov_mat = [i.I for i in cov_mat]
+        cov_mat = np.asarray(cov_mat)
+        cov_mat = cov_mat.reshape(3,3,len(els), len(els))
+        for pcnt,p in enumerate(params):
+            for pcnt2,p2 in enumerate(params):
+                TT_der1 = cl_deriv_dict[p]['TT']*TT_filter
+                TT_der2 = cl_deriv_dict[p2]['TT']*TT_filter
+                EE_der1 = cl_deriv_dict[p]['EE']
+                EE_der2 = cl_deriv_dict[p2]['EE']
+                TE_der1 = cl_deriv_dict[p]['TE']
+                TE_der2 = cl_deriv_dict[p2]['TE']                
+                #vect1 = np.array((TT_der1, EE_der1, TE_der1))
+                #vect2 = np.array((TT_der2, EE_der2, TE_der2))
+                #fij = np.einsum('im, ijmn, jn->', vect1, cov_mat, vect2)
+                vect1 = [TT_der1, EE_der1, TE_der1]
+                vect2 = [TT_der2, EE_der2, TE_der2]
+                fij = 0
+                for i1, di1 in enumerate(vect1):
+                    for i2, di2 in enumerate(vect1):
+                        fij+= np.einsum('m, mn, n->', di1, cov_mat[i1,i2], di2)
+                F_nongau[pcnt, pcnt2] = fij
+
+    return F, F2, F_nongau   
 ########################################################################################################################
 
 def fix_params(F_mat, param_names, fix_params):

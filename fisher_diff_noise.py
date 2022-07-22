@@ -10,13 +10,14 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from scipy import interpolate 
 from scipy.interpolate import interp1d
+from os.path import exists
 
 
 ############################################################################################################
 #get the necessary arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default='params/params_planck_r_0.0_2015_cosmo_lensed_LSS.txt')
-parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='lensed_scalar', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar']) # add delensed
+parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='unlensed_scalar', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar']) # add delensed
 
 #reduce lensing amplitude by xx per cent. Roughly mimicking S4-Wide delensing.
 parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=1) 
@@ -70,10 +71,15 @@ min_l_pol, max_l_pol = 30, 5000
 
 ############################################################################################################
 #cosmological parameters
-#params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
-params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
+#params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'mnu']
+params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
+#params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
+#params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar']
+#params_to_constrain = ['neff', 'thetastar']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
-prior_dic = {'tau':0.007} #Planck-like tau prior
+#prior_dic = {'tau':0.007} #Planck-like tau prior
+prior_dic = {'tau':0.007, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
+# prior 1: A:1e-17, alpha:1, prior2: A:5e-18, alpha:1, prior3: A:5e-18, alpha:1,
 if lensing_sys_n0_frac>0.:
     pass
     #prior_dic = {'Asys_lens':0.1, 'alphasys_lens': 0.1} #play with the choice of prior here.
@@ -131,8 +137,22 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-
-    if which_spectra == "delensed_scalar":
+    file_exists = exists('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rms_map_T_list[i], 1.0))
+    print('Calculating noise%s'%(rms_map_T_list[i]))
+    #if which_spectra == "delensed_scalar":
+    if file_exists:
+        print("Already have N0 for this noise level!!! \n" )
+        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rms_map_T_list[i], 1.0))
+        mv = n0s[:,-1]
+        nels = n0s[:,0]
+        nl_mv = interpolate.interp1d(nels, mv)
+        nl_dict['PP'] = nl_mv(els)
+        param_dict['rms_map_T'] = rms_map_T_list[i]
+        param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
+        param_dict['nlP'] = nl_PP_list[i]
+        param_dict['nlT'] = nl_TT_list[i]
+        param_dict['fwhm_arcmins'] = fwhm_list[i]
+    else:
         nels = np.arange(els[0], els[-1]+10, 100)
         n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT_list[i], nl_PP_list[i], dimx = 1024, dimy = 1024, fftd = 1./60/180)
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
@@ -152,7 +172,16 @@ for i in range(len(rms_map_T_list)):
     nl_dict['TT'] = nl_TT_list[i]
     nl_dict['EE'] = nl_PP_list[i]
     nl_dict['TE'] = nl_PP_list[i]*0
-    nl_dict['PP'] = nl_PP_list[i]*0
+    nl_dict['SYS'] = tools.get_nl_sys(els, param_dict['A_phi_sys'], param_dict['alpha_phi_sys'])
+    
+    '''
+    if which_spectra == "lensed_scalar" or which_spectra == "unlensed_scalar":
+        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rms_map_T_list[i], 1.0))
+        mv = n0s[:,-1]
+        nels = n0s[:,0]
+        nl_mv = interpolate.interp1d(nels, mv)
+        nl_dict['PP'] = nl_mv(els)
+    '''
 
     ############################################################################################################
     #get fiducual LCDM power spectra computed using CAMB
@@ -167,7 +196,6 @@ for i in range(len(rms_map_T_list)):
     param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
     ############################################################################################################
 
-
     ############################################################################################################
     #get delta_cl
     logline = '\tget delta Cl'; tools.write_log(logline)
@@ -175,11 +203,25 @@ for i in range(len(rms_map_T_list)):
     #delta_cl_dict = tools.get_delta_cl(els, cl_dict, nl_dict, include_lensing = include_lensing)
     ############################################################################################################
 
+    '''
+    add non_gaussian term, with derivatives to Cl^phiphi
+    els, powerini = tools.get_ini_cmb_power(param_dict, raw_cl = 1)
+    unlensedCL = powerini['unlensed_total']
+    totCL = powerini['total']
+    cl_phiphi, cl_Tphi, cl_Ephi = powerini['lens_potential'].T
+    cphifun = interpolate.interp1d(els, cl_phiphi)
+    '''
+    
+    cov_nongaussian = {}
+    Ls_to_get = np.arange(2, 5000, 1000)
+    diff_dict = tools.get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, nl_dict, Ls_to_get, percent=0.05)
+    delta_cl_dict_nongau = tools.get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diff_dict, delta_cl_dict, els, cl_phiphi, nl_dict)
+
     ############################################################################################################
     #get Fisher
     logline = '\tget fisher'; tools.write_log(logline)
-    F_mat = tools.get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
-                                      min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
+    F_mat, F_mat2, F_nongau = tools.get_fisher_mat3(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
+                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None)
     ############################################################################################################
     #add fsky to Fisher
     logline = '\tadd fsky to Fisher'; tools.write_log(logline)
@@ -210,7 +252,7 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_lensys_%s_n%s_fwhm%s.txt'%(which_spectra, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    with open('results_invCll_%s_n%s_fwhm%s.txt'%(which_spectra, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
