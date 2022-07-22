@@ -462,7 +462,7 @@ def get_delta_cl(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
         elif XX == 'PP' and include_lensing:
             nl = nl_dict['PP']
         cl = cl_dict[XX]
-        if XX == 'TE':
+        if XX == '0':
             delta_cl_dict[XX] = np.sqrt(2./ (2.*els + 1.) / fsky ) * ((cl_dict['TT'] + nl_dict['TT'])*(cl_dict['EE'] + nl_dict['EE'])+cl_dict['TE']**2)**0.5
         else:
             delta_cl_dict[XX] = np.sqrt(2./ (2.*els + 1.) / fsky ) * (cl + nl)
@@ -471,7 +471,7 @@ def get_delta_cl(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
 
 ########################################################################################################################
 
-def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
+def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, include_B = False):
     """
     get Delta_cl (sample variance)
     """
@@ -492,6 +492,9 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True):
             totname = namei + namej
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
+    
+    if include_B:
+        cov_dict['BBBB'] = 1/fsky / (2.*els + 1.) * ( (cl_dict['BB']+nl_dict['BB'])*(cl_dict['BB']+nl_dict['BB'])
     return cov_dict
 
 
