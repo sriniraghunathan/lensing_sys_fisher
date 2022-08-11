@@ -5,8 +5,6 @@
 
 import numpy as np, scipy as sc, sys, argparse, os
 import tools
-import matplotlib
-matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from scipy import interpolate 
 from scipy.interpolate import interp1d
@@ -48,7 +46,12 @@ for kargs in args_keys:
         cmd = '%s = %s' %(kargs, param_value)
     exec(cmd)
 
-if debug: from pylab import *
+if debug: 
+    from pylab import *
+else:
+    import matplotlib
+    matplotlib.use("agg")
+
 logline='\nstart Fisher forecasting\n'; tools.write_log(logline)
 
 
@@ -229,9 +232,9 @@ if 'PP' in pspectra_to_use: #include lensing noise
 #get fiducual LCDM power spectra computed using CAMB
 
 logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
-pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
+pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, debug = debug)
 
-if (1):#debug:
+if (0):#debug:
     ax = plt.subplot(111, yscale = 'log')
     dl_fac = els * (els+1)/2/np.pi
     plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
@@ -252,7 +255,7 @@ if (1):#debug:
 logline = '\tget/read derivatives'; tools.write_log(logline)
 cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
 param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
-if (0):#debug:
+if debug:
     for keyname in cl_deriv_dict:
         ax = subplot(111, yscale = 'log')
         els = np.arange(len(cl_deriv_dict[keyname]['TT']))
@@ -265,7 +268,7 @@ if (0):#debug:
         title(keyname)
         xlabel(r'Multipole $\ell$'); ylabel(r'd$C_{\ell}^{XX}$/d$%s$' %(keyname.replace('_','\_')))
         show()
-    #sys.exit()
+    sys.exit()
 ############################################################################################################
 
 print('nl_dict: ', nl_dict)
@@ -277,15 +280,18 @@ print(' cl_deriv_dict :', cl_deriv_dict)
 ############################################################################################################
 #get delta_cl
 logline = '\tget delta Cl'; tools.write_log(logline)
-delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, include_lensing = include_lensing)
-#delta_cl_dict = tools.get_delta_cl(els, cl_dict, nl_dict, include_lensing = include_lensing)
+#delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, include_lensing = include_lensing)
+delta_cl_dict = tools.get_delta_cl(els, cl_dict, nl_dict, include_lensing = include_lensing)
 ############################################################################################################
 
 ############################################################################################################
 #get Fisher
 logline = '\tget fisher'; tools.write_log(logline)
-F_mat = tools.get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
+F_mat = tools.get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
+#F_mat = tools.get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
+#            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
+#from IPython import embed; embed()
 #print(F_mat); sys.exit()
 ############################################################################################################
 print(' F_mat: ', F_mat)
@@ -339,173 +345,173 @@ with open('results_%s_%s.txt'%(which_spectra, rms_map_T),'w') as outfile:
 
 #sys.exit()
 
+if debug:
+    ax = plt.subplot(111, yscale = 'log')
+    dl_fac = els * (els+1)/2/np.pi
+    dneff = cl_deriv_dict['neff']
 
-ax = plt.subplot(111, yscale = 'log')
-dl_fac = els * (els+1)/2/np.pi
-dneff = cl_deriv_dict['neff']
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['TE'], 'orangered'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TE'] - delta_cl_dict['TE']), dl_fac*(cl_dict['TE'] + delta_cl_dict['TE']), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
 
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['TE'], 'orangered'); 
-plt.fill_between(els, dl_fac*(cl_dict['TE'] - delta_cl_dict['TE']), dl_fac*(cl_dict['TE'] + delta_cl_dict['TE']), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
+    plt.plot(els, dl_fac*dneff['TT'], linestyle = '--', color = 'black')
+    plt.plot(els, dl_fac*dneff['EE'], linestyle = '--', color = 'green')
+    plt.plot(els, dl_fac*dneff['TE'], linestyle = '--', color = 'orangered')
+    plt.plot(els, dl_fac*dneff['BB'], linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
 
-plt.plot(els, dl_fac*dneff['TT'], linestyle = '--', color = 'black')
-plt.plot(els, dl_fac*dneff['EE'], linestyle = '--', color = 'green')
-plt.plot(els, dl_fac*dneff['TE'], linestyle = '--', color = 'orangered')
-plt.plot(els, dl_fac*dneff['BB'], linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
-
-print("here")
-plt.savefig("dneff_error.png")
-
-
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
-plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
-
-plt.plot(els, abs(dl_fac*dneff['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dneff['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dneff['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dneff['BB']), linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
-
-print("here")
-plt.savefig("dneff_error3.png")
-
-dAs = cl_deriv_dict['As']
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
-plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
-
-plt.plot(els, abs(dl_fac*dAs['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dAs['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dAs['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dAs['BB']), linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
-
-print("here")
-plt.savefig("dAs_error3.png")
-
-#params_to_constrain = ['As', 'neff', 'tau', 'thetastar', 'mnu']
+    print("here")
+    plt.savefig("dneff_error.png")
 
 
-dtau = cl_deriv_dict['tau']
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
-plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
+    plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
 
-plt.plot(els, abs(dl_fac*dtau['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dtau['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dtau['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dtau['BB']), linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
+    plt.plot(els, abs(dl_fac*dneff['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dneff['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dneff['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dneff['BB']), linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
 
-print("here")
-plt.savefig("dtau_error3.png")
+    print("here")
+    plt.savefig("dneff_error3.png")
 
+    dAs = cl_deriv_dict['As']
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
+    plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
 
-dmnu = cl_deriv_dict['mnu']
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
-plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
+    plt.plot(els, abs(dl_fac*dAs['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dAs['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dAs['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dAs['BB']), linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
 
-plt.plot(els, abs(dl_fac*dmnu['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dmnu['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dmnu['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dmnu['BB']), linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
+    print("here")
+    plt.savefig("dAs_error3.png")
 
-print("here")
-plt.savefig("dmnu_error3.png")
-
-
-dthetastar = cl_deriv_dict['thetastar']
-plt.figure(figsize = (8,5))
-plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
-plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
-plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
-plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
-plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
-plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
-plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
-
-plt.plot(els, abs(dl_fac*dthetastar['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dthetastar['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dthetastar['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dthetastar['BB']), linestyle = '--', color = 'blue')
-#plt.ylim(1e-3, 1e4)
-plt.xscale('log')
-plt.yscale('log')
-
-print("here")
-plt.savefig("dthetastar_error3.png")
-
-plt.figure(figsize = (8,5))
-plt.plot(els, abs(dl_fac*dneff['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dl_fac*dneff['EE']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dl_fac*dneff['TE']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dl_fac*dneff['BB']), linestyle = '--', color = 'blue')
-
-plt.plot(els, abs(dl_fac*delta_cl_dict['TT']), color = 'black')
-plt.plot(els, abs(dl_fac*delta_cl_dict['EE']), color = 'green')
-plt.plot(els, abs(dl_fac*delta_cl_dict['TE']), color = 'orangered')
-plt.plot(els, abs(dl_fac*delta_cl_dict['BB']), color = 'blue')
-print("here")
-plt.xscale('log')
-plt.yscale('log')
-plt.savefig("dneff_error2.png")
+    #params_to_constrain = ['As', 'neff', 'tau', 'thetastar', 'mnu']
 
 
-plt.figure(figsize = (8,5))
-plt.plot(els, abs(dneff['TT']/delta_cl_dict['TT']), linestyle = '--', color = 'black')
-plt.plot(els, abs(dneff['EE']/delta_cl_dict['TT']), linestyle = '--', color = 'green')
-plt.plot(els, abs(dneff['TE']/delta_cl_dict['TT']), linestyle = '--', color = 'orangered')
-plt.plot(els, abs(dneff['BB']/delta_cl_dict['TT']), linestyle = '--', color = 'blue')
+    dtau = cl_deriv_dict['tau']
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
+    plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
 
-print("here")
-plt.xscale('log')
-plt.yscale('log')
-plt.savefig("dneff_error4.png")
+    plt.plot(els, abs(dl_fac*dtau['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dtau['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dtau['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dtau['BB']), linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
+
+    print("here")
+    plt.savefig("dtau_error3.png")
+
+
+    dmnu = cl_deriv_dict['mnu']
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
+    plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
+
+    plt.plot(els, abs(dl_fac*dmnu['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dmnu['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dmnu['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dmnu['BB']), linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
+
+    print("here")
+    plt.savefig("dmnu_error3.png")
+
+
+    dthetastar = cl_deriv_dict['thetastar']
+    plt.figure(figsize = (8,5))
+    plt.plot(els, dl_fac * cl_dict['TT'], 'black'); 
+    plt.fill_between(els, dl_fac*(cl_dict['TT'] - delta_cl_dict['TT']), dl_fac*(cl_dict['TT'] + delta_cl_dict['TT']), color = 'black', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['EE'], 'green'); 
+    plt.fill_between(els, dl_fac*(cl_dict['EE'] - delta_cl_dict['EE']), dl_fac*(cl_dict['EE'] + delta_cl_dict['EE']), color = 'green', alpha=0.5)
+    plt.plot(els, abs(dl_fac * cl_dict['TE']), 'orangered'); 
+    plt.fill_between(els, abs(dl_fac*(cl_dict['TE'] - delta_cl_dict['TE'])),abs( dl_fac*(cl_dict['TE'] + delta_cl_dict['TE'])), color = 'orangered', alpha=0.5)
+    plt.plot(els, dl_fac * cl_dict['BB'], 'blue'); 
+    plt.fill_between(els, dl_fac*(cl_dict['BB'] - delta_cl_dict['BB']), dl_fac*(cl_dict['BB'] + delta_cl_dict['BB']), color = 'blue', alpha=0.5)
+
+    plt.plot(els, abs(dl_fac*dthetastar['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dthetastar['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dthetastar['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dthetastar['BB']), linestyle = '--', color = 'blue')
+    #plt.ylim(1e-3, 1e4)
+    plt.xscale('log')
+    plt.yscale('log')
+
+    print("here")
+    plt.savefig("dthetastar_error3.png")
+
+    plt.figure(figsize = (8,5))
+    plt.plot(els, abs(dl_fac*dneff['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dl_fac*dneff['EE']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dl_fac*dneff['TE']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dl_fac*dneff['BB']), linestyle = '--', color = 'blue')
+
+    plt.plot(els, abs(dl_fac*delta_cl_dict['TT']), color = 'black')
+    plt.plot(els, abs(dl_fac*delta_cl_dict['EE']), color = 'green')
+    plt.plot(els, abs(dl_fac*delta_cl_dict['TE']), color = 'orangered')
+    plt.plot(els, abs(dl_fac*delta_cl_dict['BB']), color = 'blue')
+    print("here")
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig("dneff_error2.png")
+
+
+    plt.figure(figsize = (8,5))
+    plt.plot(els, abs(dneff['TT']/delta_cl_dict['TT']), linestyle = '--', color = 'black')
+    plt.plot(els, abs(dneff['EE']/delta_cl_dict['TT']), linestyle = '--', color = 'green')
+    plt.plot(els, abs(dneff['TE']/delta_cl_dict['TT']), linestyle = '--', color = 'orangered')
+    plt.plot(els, abs(dneff['BB']/delta_cl_dict['TT']), linestyle = '--', color = 'blue')
+
+    print("here")
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig("dneff_error4.png")
 
 
 
