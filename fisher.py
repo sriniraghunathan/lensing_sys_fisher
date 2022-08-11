@@ -34,6 +34,7 @@ parser.add_argument('-fwhm_arcmins', dest='fwhm_arcmins', action='store', help='
 
 #debug
 parser.add_argument('-debug', dest='debug', action='store', help='debug', type=int, default = 0)
+parser.add_argument('-use_precomputed_spectra', dest='use_precomputed_spectra', action='store', help='use_precomputed_spectra', type=int, default = 1)
 
 args = parser.parse_args()
 args_keys = args.__dict__
@@ -231,8 +232,33 @@ if 'PP' in pspectra_to_use: #include lensing noise
 ############################################################################################################
 #get fiducual LCDM power spectra computed using CAMB
 
+def get_camb_spectra_wrapper(param_dict, which_spectra, debug):
+    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, debug = debug)
+    return pars, els, cl_dict
+
 logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
-pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, debug = debug)
+camb_spectra_obtained = False
+if use_precomputed_spectra:
+    data_folder = 'data/camb_precomputed/'
+    if not os.path.exists(data_folder): os.system('mkdir -p %s' %(data_folder))
+    camb_fname = '%s/camb_precomputed_spectra_%s_Alens%s.npy' %(data_folder, which_spectra, Alens)
+    if not os.path.exists(camb_fname):
+        pars, els, cl_dict = get_camb_spectra_wrapper(param_dict, which_spectra, debug)
+        camb_dict = {}
+        camb_dict['cl_dict'] = cl_dict
+        camb_dict['els'] = els
+        #camb_dict['pars'] = pars
+        np.save(camb_fname, camb_dict)
+    else:
+        logline = '\t\tusing precomputed file: %s' %(camb_fname); tools.write_log(logline)
+        camb_dict = np.load(camb_fname, allow_pickle = True).item()
+        cl_dict = camb_dict['cl_dict']
+        els = camb_dict['els']
+    camb_spectra_obtained = True
+
+if not camb_spectra_obtained:
+    pars, els, cl_dict = get_camb_spectra_wrapper(param_dict, which_spectra, debug)
+
 
 if (0):#debug:
     ax = plt.subplot(111, yscale = 'log')
@@ -252,9 +278,34 @@ if (0):#debug:
 ############################################################################################################
 #get derivatives
 #please change to get the derivatives for the delensed spectra
+def get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain = params_to_constrain):
+    cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
+    return cl_deriv_dict
+
 logline = '\tget/read derivatives'; tools.write_log(logline)
-cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
+camb_deriv_spectra_obtained = False
+if use_precomputed_spectra:
+    data_folder = 'data/camb_precomputed/'
+    if not os.path.exists(data_folder): os.system('mkdir -p %s' %(data_folder))
+    camb_deriv_fname = '%s/camb_precomputed_spectra_%s_Alens%s.npy' %(data_folder, which_spectra, Alens)
+    if not os.path.exists(camb_deriv_fname):
+        cl_deriv_dict = get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain)
+        camb_deriv_dict = {}
+        camb_deriv_dict['cl_deriv_dict'] = cl_deriv_dict
+        camb_deriv_dict['param_names'] = param_names
+        np.save(camb_deriv_fname, camb_deriv_dict)
+    else:
+        logline = '\t\tusing precomputed file: %s' %(camb_deriv_fname); tools.write_log(logline)
+        camb_deriv_dict = np.load(camb_deriv_fname, allow_pickle = True).item()
+        cl_deriv_dict = camb_deriv_dict['cl_deriv_dict']
+        param_names = camb_deriv_dict['param_names']
+    camb_deriv_spectra_obtained = True
+
+if not camb_deriv_spectra_obtained:
+    cl_deriv_dict = get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain)
 param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
+
+print(camb_deriv_dict); sys.exit()
 if debug:
     for keyname in cl_deriv_dict:
         ax = subplot(111, yscale = 'log')

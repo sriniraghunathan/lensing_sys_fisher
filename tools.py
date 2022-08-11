@@ -742,6 +742,8 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
     if min_l_pol is None: min_l_pol = 0
     if max_l_pol is None: max_l_pol = 10000
 
+    print(max_l_pol, max_l_temp); sys.exit()
+
     npar = len(params)
     F = np.zeros([npar,npar])
     #els = np.arange( len( delta_cl_dict.values()[0] ) )
