@@ -290,6 +290,7 @@ if use_precomputed_spectra:
     camb_deriv_fname = '%s/camb_precomputed_spectra_deriv_%s_Alens%s.npy' %(data_folder, which_spectra, Alens)
     if not os.path.exists(camb_deriv_fname):
         cl_deriv_dict = get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain)
+        param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
         camb_deriv_dict = {}
         camb_deriv_dict['cl_deriv_dict'] = cl_deriv_dict
         camb_deriv_dict['param_names'] = param_names
@@ -303,9 +304,8 @@ if use_precomputed_spectra:
 
 if not camb_deriv_spectra_obtained:
     cl_deriv_dict = get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain)
-param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
+    param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
 
-print(camb_deriv_dict); sys.exit()
 if debug:
     for keyname in cl_deriv_dict:
         ax = subplot(111, yscale = 'log')
