@@ -287,7 +287,7 @@ camb_deriv_spectra_obtained = False
 if use_precomputed_spectra:
     data_folder = 'data/camb_precomputed/'
     if not os.path.exists(data_folder): os.system('mkdir -p %s' %(data_folder))
-    camb_deriv_fname = '%s/camb_precomputed_spectra_%s_Alens%s.npy' %(data_folder, which_spectra, Alens)
+    camb_deriv_fname = '%s/camb_precomputed_spectra_deriv_%s_Alens%s.npy' %(data_folder, which_spectra, Alens)
     if not os.path.exists(camb_deriv_fname):
         cl_deriv_dict = get_camb_deriv_spectra_wrapper(param_dict, which_spectra, params_to_constrain)
         camb_deriv_dict = {}
