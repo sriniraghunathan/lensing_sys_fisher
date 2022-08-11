@@ -27,7 +27,7 @@ parser.add_argument('-include_lensing', dest='include_lensing', action='store', 
 parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
 
 #ILC residual file
-parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 1)
+parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 0)
 #or add noise levels (only used if use_ilc_nl = 0)
 parser.add_argument('-rms_map_T', dest='rms_map_T', action='store', help='rms_map_T', type=float, default = 2.)
 parser.add_argument('-fwhm_arcmins', dest='fwhm_arcmins', action='store', help='fwhm_arcmins', type=float, default = 1.4)
@@ -77,7 +77,7 @@ params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar',
 #params_to_constrain = ['neff']
 #params_to_constrain = ['As','A_phi_sys', 'alpha_phi_sys', 'neff']
 ###params_to_constrain = ['As']
-fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
+fix_params = ['Alens', 'ws', 'omk', 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 prior_dic = {'tau':0.007} #Planck-like tau prior
 if lensing_sys_n0_frac>0.:
     pass
@@ -322,8 +322,8 @@ if debug:
     sys.exit()
 ############################################################################################################
 
-print('nl_dict: ', nl_dict)
-print(' cl_deriv_dict :', cl_deriv_dict)
+#print('nl_dict: ', nl_dict)
+#print(' cl_deriv_dict :', cl_deriv_dict)
 
 ############################################################################################################
 ############################################################################################################
@@ -342,7 +342,7 @@ F_mat = tools.get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, param_names, psp
             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
 #F_mat = tools.get_fisher_mat2(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
 #            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol)
-#from IPython import embed; embed()
+##from IPython import embed; embed()
 #print(F_mat); sys.exit()
 ############################################################################################################
 print(' F_mat: ', F_mat)
@@ -365,6 +365,7 @@ param_names = np.asarray(param_names)
 #add prior
 logline = '\tadding prior'; tools.write_log(logline)
 F_mat = tools.add_prior(F_mat, param_names, prior_dic)
+print(np.diag(F_mat))
 ############################################################################################################
 
 ############################################################################################################
@@ -372,6 +373,7 @@ F_mat = tools.add_prior(F_mat, param_names, prior_dic)
 logline = '\tget covariance matrix'; tools.write_log(logline)
 #cov_mat = sc.linalg.pinv2(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
 cov_mat = np.linalg.inv(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
+print(np.diag(cov_mat))
 ############################################################################################################
 
 ############################################################################################################
@@ -384,10 +386,10 @@ with open('results_%s_%s.txt'%(which_spectra, rms_map_T),'w') as outfile:
         logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
         pind = np.where(param_names == desired_param)[0][0]
         pcntr1, pcntr2 = pind, pind
-        print('pind ',pind, 'pcntr1',pcntr1,'pcntr2',pcntr2)
+        #print('pind ',pind, 'pcntr1',pcntr1,'pcntr2',pcntr2)
         cov_inds_to_extract = [(pcntr1, pcntr1), (pcntr1, pcntr2), (pcntr2, pcntr1), (pcntr2, pcntr2)]
         cov_extract = np.asarray( [cov_mat[ii] for ii in cov_inds_to_extract] ).reshape((2,2))
-        print('cov_extract: ',cov_extract)
+        #print('cov_extract: ',cov_extract)
         sigma = cov_extract[0,0]**0.5
         opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
         print(opline)

@@ -742,8 +742,6 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
     if min_l_pol is None: min_l_pol = 0
     if max_l_pol is None: max_l_pol = 10000
 
-    print(max_l_pol, max_l_temp); sys.exit()
-
     npar = len(params)
     F = np.zeros([npar,npar])
     #els = np.arange( len( delta_cl_dict.values()[0] ) )
@@ -808,6 +806,7 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
         #get covariance matrix and its inverse
         COV_mat_l = get_cov(TT, EE, TE, PP, Tphi, Ephi)
         inv_COV_mat_l = linalg.pinv2(COV_mat_l)
+        #print(COV_mat_l); sys.exit()
         ##############################################################################
         #get the parameter combinations
         param_combinations = []
@@ -834,7 +833,6 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
                 TE_der1 = cl_deriv_dict[p]['TE'][lcntr]
                 TE_der2 = cl_deriv_dict[p2]['TE'][lcntr]
 
-
             if with_lensing:
                 PP_der1, TPhi_der1, EPhi_der1 = cl_deriv_dict[p]['PP'][lcntr], cl_deriv_dict[p]['Tphi'][lcntr], cl_deriv_dict[p]['Ephi'][lcntr]
                 PP_der2, TPhi_der2, EPhi_der2 = cl_deriv_dict[p2]['PP'][lcntr], cl_deriv_dict[p2]['Tphi'][lcntr], cl_deriv_dict[p2]['Ephi'][lcntr]
@@ -852,6 +850,8 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
             fprime2_l_vec = get_cov(TT_der2, EE_der2, TE_der2, PP_der2, TPhi_der2, EPhi_der2)
 
             curr_val = np.trace( np.dot( np.dot(inv_COV_mat_l, fprime1_l_vec), np.dot(inv_COV_mat_l, fprime2_l_vec) ) )
+            if (0):#curr_val>0:
+                print(curr_val, p,p2, pcnt, pcnt2, lcntr, l); sys.exit()
 
             F[pcnt2,pcnt] += curr_val
 
