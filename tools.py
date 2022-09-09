@@ -1345,6 +1345,9 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
         covmat = covmat.reshape((3,3,len(newl)-1,len(newl)-1))
         covmat = np.block([[covmat[0,0], covmat[0,1], covmat[0,2]],[covmat[1,0], covmat[1,1], covmat[1,2]],[covmat[2,0], covmat[2,1], covmat[2,2]]])
 
+    if (1):
+        np.savetxt('covmat_binsize%s.npy' %(binsize), covmat)
+        sys.exit()
     inv_covmat = np.asmatrix(covmat).I
 
     for pcnt,p in enumerate(params):
