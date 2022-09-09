@@ -1,6 +1,6 @@
 import numpy as np, sys, scipy as sc, os
 import json
-#from pylab import *
+
 from scipy import linalg
 import copy
 from scipy import interpolate 
@@ -111,7 +111,7 @@ def get_ini_cmb_power(param_dict, raw_cl = 1):
     #return els
 
 ########################################################################################################################
-def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True):
+def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True, debug = False):
 
     """
     set CAMB cosmology and get power spectra
@@ -156,6 +156,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         num_massive_neutrinos = param_dict_to_use['num_nu_massive'])
     pars.set_for_lmax(int(param_dict_to_use['max_l_limit']), lens_potential_accuracy=param_dict_to_use['lens_potential_accuracy'],
         max_eta_k = param_dict_to_use['max_eta_k'])
+    #print(param_dict_to_use); sys.exit()
     pars.InitPower.set_params(ns=param_dict_to_use['ns'], r=param_dict_to_use['r'], As = param_dict_to_use['As'])
     ########################
 
@@ -177,7 +178,26 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     els = np.arange(param_dict['min_l_limit'], param_dict['max_l_limit']+1)
     ########################
 
+    if debug:
+        import matplotlib.pyplot as plt
+        #from IPython import embed; embed()
+        unlensed, lensed, phi = powers['unlensed_scalar'], powers['lensed_scalar'], powers['lens_potential']
+        total = powers['total']
+        #unlensed_v2, lensed_v2, phi_v2 = powers['unlensed_scalar'], powers['lensed_scalar'], powers['lens_potential']
 
+        #powers = results.get_cmb_power_spectra(pars, lmax = param_dict['max_l_limit'], raw_cl = 0)#, spectra = [which_spectra])#, CMB_unit=None, raw_cl=False)
+        #unlensed, lensed, phi = powers['unlensed_scalar'], powers['lensed_scalar'], powers['lens_potential']
+
+        ax = plt.subplot(111, yscale = 'log');plt.plot(unlensed[:,0], 'k-', label = r'Unlensed'); # plot(unlensed_v2[:,0], 'lime'); show()
+        ax = plt.subplot(111, yscale = 'log');plt.plot(lensed[:,0], 'g-', label = r'Lensed'); #plot(lensed_v2[:,0]/lensed[:,0]); show()
+        #ax = plt.subplot(111, yscale = 'log');plt.plot(total[:,0], 'r-', label = r'Unlensed'); #plot(lensed_v2[:,0]/lensed[:,0]); show()
+        plt.legend(loc = 1)
+        plt.xlim(0, 5000); plt.ylim(1e-6, 500.)
+        plt.show()
+        ax = plt.subplot(111, yscale = 'log'); plt.plot(phi[:,0], 'k-'); #plot(phi_v2[:,0], 'lime'); show()
+        plt.xlim(0, 5000); plt.ylim(1e-23, 1e-9); 
+        plt.show()
+        #sys.exit()
 
     ########################
     #add delensedCL
@@ -883,6 +903,7 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
         #get covariance matrix and its inverse
         COV_mat_l = get_cov(TT, EE, TE, PP, Tphi, Ephi)
         inv_COV_mat_l = linalg.pinv2(COV_mat_l)
+        #print(COV_mat_l); sys.exit()
         ##############################################################################
         #get the parameter combinations
         param_combinations = []
@@ -909,7 +930,6 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
                 TE_der1 = cl_deriv_dict[p]['TE'][lcntr]
                 TE_der2 = cl_deriv_dict[p2]['TE'][lcntr]
 
-
             if with_lensing:
                 PP_der1, TPhi_der1, EPhi_der1 = cl_deriv_dict[p]['PP'][lcntr], cl_deriv_dict[p]['Tphi'][lcntr], cl_deriv_dict[p]['Ephi'][lcntr]
                 PP_der2, TPhi_der2, EPhi_der2 = cl_deriv_dict[p2]['PP'][lcntr], cl_deriv_dict[p2]['Tphi'][lcntr], cl_deriv_dict[p2]['Ephi'][lcntr]
@@ -927,6 +947,8 @@ def get_fisher_mat(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, m
             fprime2_l_vec = get_cov(TT_der2, EE_der2, TE_der2, PP_der2, TPhi_der2, EPhi_der2)
 
             curr_val = np.trace( np.dot( np.dot(inv_COV_mat_l, fprime1_l_vec), np.dot(inv_COV_mat_l, fprime2_l_vec) ) )
+            if (0):#curr_val>0:
+                print(curr_val, p,p2, pcnt, pcnt2, lcntr, l); sys.exit()
 
             F[pcnt2,pcnt] += curr_val
 
