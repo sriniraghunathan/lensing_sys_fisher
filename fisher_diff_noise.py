@@ -213,10 +213,10 @@ for i in range(len(rms_map_T_list)):
 
     #'''
     cov_nongaussian = {}
-    Lsdl = 20
+    Lsdl = 50
     Ls_to_get = np.arange(2, 5000, Lsdl)
     file_exists = exists("derivs/diffphi_dl%s_camb.json"%(Lsdl))
-    #file_exists = False
+    file_exists = False
     if which_spectra == "delensed_scalar":        
         file_exists = False
 
@@ -242,9 +242,9 @@ for i in range(len(rms_map_T_list)):
 
     else:
         print("Calculate diffphi, diffe, diffself!")
-        diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
+        #diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
 
-        #diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
+        diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
     
     
     delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
@@ -257,7 +257,7 @@ for i in range(len(rms_map_T_list)):
     #get Fisher
     logline = '\tget fisher'; tools.write_log(logline)
     F_mat, covmat, [new_delta_dict, new_deriv_dict] = tools.get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
-                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None, binsize = 2, include_B = True)
+                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None, binsize = 10, include_B = True)
     '''
     Fttmat, Feemat, Ftteemat = tools.get_fisher_mat3(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
                                             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None)
@@ -293,7 +293,7 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_inv_bin2_BB_phiphi_%s_dl%s_n%s_fwhm%s.txt'%(which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    with open('results_inv_bin10_BB_phiphi_selfdriv_%s_dl%s_n%s_fwhm%s.txt'%(which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)

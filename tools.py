@@ -653,26 +653,26 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             clsi = cls.copy()
             clsi[Li,1] = clsi[Li,1]*(1+percent)
             thyresj = camb.correlations.lensed_cls(clsi, clpp, lmax = els[-1])
-            diffp[i] = (thyresi - thyres0)/(clpp[Li]*percent)
-            diffe[i] = (thyresj - thyres0)/(cls[Li,1]*percent)
-            diffs[i,:,1] = (thyresj[:,1] - thyres0[:,1])/(cls[Li,1]*percent)
+            diffp[i] = (thyresi - thyres0)/(clpp[Li]*percent/(Li*(Li+1))**2)
+            diffe[i] = (thyresj - thyres0)/(cls[Li,1]*percent/(Li*(Li+1)))
+            diffs[i,:,1] = (thyresj[:,1] - thyres0[:,1])/(cls[Li,1]*percent/(Li*(Li+1)))
             clsi = cls.copy()
             clsi[Li,0] = clsi[Li,0]*(1+percent)
             thyresj = camb.correlations.lensed_cls(clsi, clpp, lmax = els[-1])
-            diffs[i,:,0] = (thyresj[:,0] - thyres0[:,0])/(cls[Li,0]*percent) ## second bug found
+            diffs[i,:,0] = (thyresj[:,0] - thyres0[:,0])/(cls[Li,0]*percent/(Li*(Li+1))) ## second bug found
             clsi = cls.copy()
             clsi[Li,3] = clsi[Li,3]*(1+percent)
             thyresj = camb.correlations.lensed_cls(clsi, clpp, lmax = els[-1])
-            diffs[i,:,3] = (thyresj[:,3] - thyres0[:,3])/(cls[Li,3]*percent)
+            diffs[i,:,3] = (thyresj[:,3] - thyres0[:,3])/(cls[Li,3]*percent/(Li*(Li+1)))
 
-        diff_EE_dict['BB'] = diffe[:,2:,2] #* 2 * np.pi / (els * (els + 1 )) ## first bug found in BB
-        diff_phi_dict['TT'] = diffp[:,2:,0] * (els * (els + 1 ))
-        diff_phi_dict['EE'] = diffp[:,2:,1] * (els * (els + 1 ))
-        diff_phi_dict['BB'] = diffp[:,2:,2] * (els * (els + 1 ))
-        diff_phi_dict['TE'] = diffp[:,2:,3] * (els * (els + 1 ))
-        diff_self_dict['TT'] = diffs[:,2:,0] #* 2 * np.pi / (els * (els + 1 ))
-        diff_self_dict['EE'] = diffs[:,2:,1] #* 2 * np.pi / (els * (els + 1 ))
-        diff_self_dict['TE'] = diffs[:,2:,3] #* 2 * np.pi / (els * (els + 1 ))
+        diff_EE_dict['BB'] = diffe[:,2:,2] / (els * (els + 1 )) ## first bug found in BB
+        diff_phi_dict['TT'] = diffp[:,2:,0] / (els * (els + 1 )) 
+        diff_phi_dict['EE'] = diffp[:,2:,1] / (els * (els + 1 ))
+        diff_phi_dict['BB'] = diffp[:,2:,2] / (els * (els + 1 ))
+        diff_phi_dict['TE'] = diffp[:,2:,3] / (els * (els + 1 ))
+        diff_self_dict['TT'] = diffs[:,2:,0] / (els * (els + 1 ))
+        diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
+        diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
 
         with open("derivs/diffphi_dl%s_Dl.json"%(dl), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
