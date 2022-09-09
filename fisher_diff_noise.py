@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy import interpolate 
 from scipy.interpolate import interp1d
 from os.path import exists
-
+import json
 
 ############################################################################################################
 #get the necessary arguments
@@ -74,8 +74,10 @@ min_l_pol, max_l_pol = 30, 5000
 #params_to_constrain = ['As', 'ns', 'ombh2', 'omch2', 'tau', 'mnu', 'r']
 #params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
-#params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
-params_to_constrain = ['r', 'thetastar']
+###params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
+params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar']
+#params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar']
+#params_to_constrain = ['r', 'thetastar']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['neff', 'thetastar']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
@@ -139,12 +141,12 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-    file_exists = exists('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rms_map_T_list[i], 1.0))
+    file_exists = exists('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
     print('Calculating noise%s'%(rms_map_T_list[i]))
     #if which_spectra == "delensed_scalar":
     if file_exists:
         print("Already have N0 for this noise level!!! \n" )
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rms_map_T_list[i], 1.0))
+        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
         mv = n0s[:,-1]
         nels = n0s[:,0]
         nl_mv = interpolate.interp1d(nels, mv)
@@ -155,12 +157,12 @@ for i in range(len(rms_map_T_list)):
         param_dict['nlT'] = nl_TT_list[i]
         param_dict['fwhm_arcmins'] = fwhm_list[i]
     else:
-        nels = np.arange(els[0], els[-1]+10, 100)
+        nels = np.arange(els[0], els[-1]+10, 10)
         n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT_list[i], nl_PP_list[i], dimx = 1024, dimy = 1024, fftd = 1./60/180)
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
         data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
         header = "els,n0s['EB'],n0s[q'EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv" 
-        output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rms_map_T_list[i], fwhm_list[i])
+        output_name = "params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat"%(rms_map_T_list[i], fwhm_list[i])
         np.savetxt(output_name, data, header=header)
         param_dict['rms_map_T'] = rms_map_T_list[i]
         param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
@@ -194,8 +196,7 @@ for i in range(len(rms_map_T_list)):
     ############################################################################################################
     #get delta_cl
     logline = '\tget delta Cl'; tools.write_log(logline)
-    #delta_cl_dict = tools.get_delta_cl_cov2(els, cl_dict, nl_dict, include_lensing = include_lensing)
-    #delta_cl_dict = tools.get_delta_cl(els, cl_dict, nl_dict, include_lensing = include_lensing)
+    #delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, include_lensing = include_lensing, which_spectra = which_spectra, include_B = False)
     print('cl_dict.keys ', cl_dict.keys(), '\n')
     print('nl_dict.keys ', nl_dict.keys(), '\n')
     ############################################################################################################
@@ -209,20 +210,59 @@ for i in range(len(rms_map_T_list)):
     cphifun = interpolate.interp1d(els, cl_phiphi)
     '''
     
+
+    #'''
     cov_nongaussian = {}
-    Ls_to_get = np.arange(2, 5000, 100)
+    Lsdl = 20
+    Ls_to_get = np.arange(2, 5000, Lsdl)
+    file_exists = exists("derivs/diffphi_dl%s_camb.json"%(Lsdl))
+    #file_exists = False
+    if which_spectra == "delensed_scalar":        
+        file_exists = False
+
+    diff_EE_dict = {}; diff_self_dict = {}; diff_phi_dict = {}
+
+    if file_exists:
+        print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
+        with open("derivs/diffphi_dl%s_camb.json"%(Lsdl)) as infile:
+            diff_phi_data = json.load(infile)
+        with open("derivs/diffself_dl%s_camb.json"%(Lsdl)) as infile:
+            diff_self_data = json.load(infile)
+        with open("derivs/diffee_dl%s_camb.json"%(Lsdl)) as infile:
+            diff_EE_data = json.load(infile)
+
+        diff_EE_dict['BB'] = np.asarray(diff_EE_data['BB'])
+        diff_self_dict['TT'] = np.asarray(diff_self_data['TT'])
+        diff_self_dict['EE'] = np.asarray(diff_self_data['EE'])
+        diff_self_dict['TE'] = np.asarray(diff_self_data['TE'])
+        diff_phi_dict['TT'] = np.asarray(diff_phi_data['TT'])
+        diff_phi_dict['EE'] = np.asarray(diff_phi_data['EE'])
+        diff_phi_dict['BB'] = np.asarray(diff_phi_data['BB'])
+        diff_phi_dict['TE'] = np.asarray(diff_phi_data['TE'])
+
+    else:
+        print("Calculate diffphi, diffe, diffself!")
+        diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
+
+        #diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
+    
+    
+    delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
     #diff_dict = tools.get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, nl_dict, Ls_to_get, percent=0.05)
     #delta_cl_dict_nongau = tools.get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diff_dict, delta_cl_dict, els, cl_phiphi, nl_dict)
 
-    diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05)
-    delta_cl_dict = tools.get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
-
+    #'''
 
     ############################################################################################################
     #get Fisher
     logline = '\tget fisher'; tools.write_log(logline)
-    F_mat = tools.get_fisher_mat4(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
+    F_mat, covmat, [new_delta_dict, new_deriv_dict] = tools.get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
+                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None, binsize = 2, include_B = True)
+    '''
+    Fttmat, Feemat, Ftteemat = tools.get_fisher_mat3(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
                                             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None)
+    '''
+
     ############################################################################################################
     #add fsky to Fisher
     logline = '\tadd fsky to Fisher'; tools.write_log(logline)
@@ -253,7 +293,7 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_invCll_test_r_%s_n%s_fwhm%s.txt'%(which_spectra, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    with open('results_inv_bin2_BB_phiphi_%s_dl%s_n%s_fwhm%s.txt'%(which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
@@ -274,5 +314,5 @@ for i in range(len(rms_map_T_list)):
 
 ax = plt.subplot(111, yscale = 'log')
 dl_fac = els * (els+1)/2/np.pi
-dneff = cl_deriv_dict['neff']
+#dneff = cl_deriv_dict['neff']
 
