@@ -300,6 +300,21 @@ for i in range(len(rms_map_T_list)):
     ############################################################################################################
 
     ############################################################################################################
+    if (1): #20220915 - debug: fix all but one parameter and check constraints.
+        logline = '\tdebugging Fisher matrix for individual parameter constraints'; tools.write_log(logline)
+        F_mat_for_debug = np.copy(F_mat)
+        param_names_for_debug = np.copy(param_names)
+        for curr_param in param_names_for_debug:
+            params_to_fix = np.setxor1d( param_names_for_debug, [curr_param])
+            curr_param_F_mat, curr_param_names = tools.fn_fix_params(F_mat_for_debug, param_names_for_debug, params_to_fix)
+            curr_cov_mat = 1./curr_param_F_mat
+            sigma = curr_cov_mat**0.5
+            opline = '\t\tsigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(curr_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
+            print(opline)
+    ############################################################################################################
+
+
+    ############################################################################################################
     #get cov matrix now
     logline = '\tget covariance matrix'; tools.write_log(logline)
     #cov_mat = sc.linalg.pinv2(F_mat) #made sure that COV_mat_l * Cinv_l ~= I
@@ -324,7 +339,7 @@ for i in range(len(rms_map_T_list)):
             opline = '\t\t\sigma(%s) = %g using %s; fsky = %s; power spectra = %s (Alens = %s)' %(desired_param, sigma, str(pspectra_to_use), fsky, which_spectra, Alens)
             print(opline)
             outfile.write('sigma(%s),%g\n'%(desired_param, sigma))
-            ############################################################################################################
+    ############################################################################################################
 
 
     out_dict = {}
