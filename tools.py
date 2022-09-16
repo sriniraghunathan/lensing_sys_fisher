@@ -517,9 +517,10 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
     
+    cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
+    
     if include_B:
         print("Include BB")
-        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
         term1 = 2/fsky / (2.*els + 1.) * ( (cl_dict['BB']+nl_dict['BB'])*(cl_dict['BB']+nl_dict['BB']))
         print('term1: ', term1)
         if which_spectra == "unlensed_total":
@@ -532,7 +533,7 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
             print("which_spectra is %s"%(which_spectra))
             deriv_filter = np.zeros(dB_dE_dict['BB'].shape)
             #deriv_filter = np.ones(dB_dE_dict['BB'].shape)
-            deriv_filter[1:, 2:] = 1
+            deriv_filter[4:, 30:] = 1
             sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EEEE'][Ls_to_get-2], dB_dE_dict['BB']*deriv_filter)
             sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict['BB']*deriv_filter)
             dl = Ls_to_get[1] - Ls_to_get[0]
@@ -549,16 +550,16 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
                 print(cov_dict.keys())
 
         print('BBBB: ', cov_dict['BBBB'])
-        if include_lensing:
-            if which_spectra == "total" or which_spectra == "delensed_scalar":
-                for keyi in cov_dict:
-                    if keyi != "PPPP" and keyi[0] != "B":
-                        sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict[keyi[0]+keyi[1]]*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict[keyi[2]+keyi[3]]*deriv_filter)   
-                        if len(cov_dict[keyi].shape) == 2:
-                            cov_dict[keyi] += sumlp*dl
-                        else:
-                            cov_dict[keyi] = np.diag(cov_dict[keyi]) + sumlp*dl
-        print('BBBB: ', cov_dict['BBBB'])
+    
+    if include_lensing:
+        if which_spectra == "total" or which_spectra == "delensed_scalar":
+            for keyi in cov_dict:
+                if keyi != "PPPP" and keyi[0] != "B":
+                    sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict[keyi[0]+keyi[1]]*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict[keyi[2]+keyi[3]]*deriv_filter)   
+                    if len(cov_dict[keyi].shape) == 2:
+                        cov_dict[keyi] += sumlp*dl
+                    else:
+                        cov_dict[keyi] = np.diag(cov_dict[keyi]) + sumlp*dl
 
     return cov_dict
 
@@ -644,7 +645,7 @@ def get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diffphi, delta_cl_dict, el
 
 ########################################################################################################################
 
-def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05):
+def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05, noiseTi  = 1):
     """
     get non_gaussian part for Delta_cl (sample variance)
     """
@@ -716,17 +717,17 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diffe = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
         diffs = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
         for i, Li in enumerate(Ls_to_get):
-            clppi = cl_phiphi.copy()
-            clppi[Li-2] = cl_phiphi[Li-2]*(1+percent)
-            winf = clppi / (nl_dict['PP'] + clppi + nl_dict['SYS'])
-            clppi = clppi * winf**1 * (els*(els+1))**2/2/np.pi
+            clphii = cl_phiphi.copy()
+            clphii[Li-2] = cl_phiphi[Li-2]*(1+percent)
+            winf = clphii / (nl_dict['PP'] + clphii + nl_dict['SYS'])
+            clppi = clphii * winf**1 * (els*(els+1))**2/2/np.pi
             clppi = np.insert(clppi, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clppi, lmax = els[-1])
             clsi = cls.copy()
             clsi[Li,1] = clsi[Li,1]*(1+percent)
             thyresj = camb.correlations.lensed_cls(clsi, clpp, lmax = els[-1])
-            diffp[i] = (thyresi - thyres0)/(clppi[Li]*percent/(Li*(Li+1))**2)
-            diffe[i] = (thyresj - thyres0)/(clsi[Li]*percent/(Li*(Li+1)))
+            diffp[i] = (thyresi - thyres0)/(cl_phiphi[Li-2]*percent)
+            diffe[i] = (thyresj - thyres0)/(clsi[Li, 1]*percent/(Li*(Li+1)))
             diffs[i,:,1] = (thyresj[:,1] - thyres0[:,1])/(clsi[Li,1]*percent/(Li*(Li+1)))
             clsi = cls.copy()
             clsi[Li,0] = clsi[Li,0]*(1+percent)
@@ -737,15 +738,25 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             thyresj = camb.correlations.lensed_cls(clsi, clpp, lmax = els[-1])
             diffs[i,:,3] = (thyresj[:,3] - thyres0[:,3])/(clsi[Li,3]*percent/(Li*(Li+1)))
 
-        diff_EE_dict['BB'] = diffe[:,2:, 2] * 2 * np.pi / (els * (els + 1 ))
-        diff_phi_dict['TT'] = diffp[:,2:,0] * 2 * np.pi / (els * (els + 1 ))
-        diff_phi_dict['EE'] = diffp[:,2:,1] * 2 * np.pi / (els * (els + 1 ))
-        diff_phi_dict['BB'] = diffp[:,2:,2] * 2 * np.pi / (els * (els + 1 ))
-        diff_phi_dict['TE'] = diffp[:,2:,3] * 2 * np.pi / (els * (els + 1 ))
-        diff_self_dict['TT'] = diffs[:,2:,0] * 2 * np.pi / (els * (els + 1 ))
-        diff_self_dict['EE'] = diffs[:,2:,1] * 2 * np.pi / (els * (els + 1 ))
-        diff_self_dict['TE'] = diffs[:,2:,3] * 2 * np.pi / (els * (els + 1 ))
+        diff_EE_dict['BB'] = diffe[:,2:, 2] / (els * (els + 1 ))
+        diff_phi_dict['TT'] = diffp[:,2:,0]  / (els * (els + 1 ))
+        diff_phi_dict['EE'] = diffp[:,2:,1]  / (els * (els + 1 ))
+        diff_phi_dict['BB'] = diffp[:,2:,2]  / (els * (els + 1 ))
+        diff_phi_dict['TE'] = diffp[:,2:,3]  / (els * (els + 1 ))
+        diff_self_dict['TT'] = diffs[:,2:,0] / (els * (els + 1 ))
+        diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
+        diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
     
+        with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+            j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
+        with open("derivs/diffself_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+            j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
+        with open("derivs/diffee_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+            j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
+        dataLs = np.column_stack((Ls_to_get))
+        header0 = "Ls_to_get" 
+        output_name0 = "derivs/Ls_to_get.dat"%(dl)
+        np.savetxt(output_name0, dataLs, header=header0)
 
     
     return diff_EE_dict, diff_phi_dict, diff_self_dict
@@ -1300,7 +1311,8 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
         for keyi in covnames[:9]:
             cut_delta = delta_cl_dict[keyi][:newend, :newend]
             new_delta = cut_delta.reshape((newshape, binsize, newshape, binsize)).mean(axis = 3).mean(1)
-            new_delta_dict[keyi] = new_delta
+            #np.fill_diagonal(new_delta, np.diagonal(new_delta)*10)
+            new_delta_dict[keyi] = new_delta * binsize
             
 
     covmat = {}
@@ -1329,13 +1341,13 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
             new_delta = cut_delta.reshape((newshape, binsize, newshape, binsize)).mean(axis = 3).mean(1)
             #new_delta = (cut_delta.reshape((newshape, binsize, newshape, binsize)))**2
             #new_delta = (new_delta.mean(axis = 3).mean(axis=1))**0.5
-            new_delta_dict['BB'+keyi] = new_delta
+            new_delta_dict['BB'+keyi] = new_delta * binsize
             #covmat.append(new_delta)
 
 
     if include_B:
         covmat = covmat.reshape((3,3,len(newl)-1,len(newl)-1))
-        covmat = np.block([[covmat[0,0], covmat[0,1], covmat[0,2],new_delta_dict['BBTT']],[covmat[1,0], covmat[1,1], covmat[1,2], new_delta_dict['BBEE']],[covmat[2,0], covmat[2,1], covmat[2,2], new_delta_dict['BBTE']],[new_delta_dict['BBTT'], new_delta_dict['BBEE'], new_delta_dict['BBTE'],new_delta_dict['BBBB']]])
+        covmat = np.block([[covmat[0,0], covmat[0,1], covmat[0,2],new_delta_dict['BBTT'].T],[covmat[1,0], covmat[1,1], covmat[1,2], new_delta_dict['BBEE'].T],[covmat[2,0], covmat[2,1], covmat[2,2], new_delta_dict['BBTE'].T],[new_delta_dict['BBTT'], new_delta_dict['BBEE'], new_delta_dict['BBTE'],new_delta_dict['BBBB']]])
         #covmat = covmat.reshape((4,4,len(newl)-1,len(newl)-1))
         #covmat = np.block([[covmat[0,0], covmat[0,1], covmat[0,2],covmat[0,3]],[covmat[1,0], covmat[1,1], covmat[1,2], covmat[1,3]],[covmat[2,0], covmat[2,1], covmat[2,2], covmat[2,3]],[covmat[3,0], covmat[3,1], covmat[3,2],covmat[3,3]]])
     else:
@@ -1343,7 +1355,7 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
         covmat = covmat.reshape((3,3,len(newl)-1,len(newl)-1))
         covmat = np.block([[covmat[0,0], covmat[0,1], covmat[0,2]],[covmat[1,0], covmat[1,1], covmat[1,2]],[covmat[2,0], covmat[2,1], covmat[2,2]]])
 
-    if (1):
+    if (0):
         np.savetxt('covmat_binsize%s.npy' %(binsize), covmat)
         sys.exit()
     inv_covmat = np.asmatrix(covmat).I

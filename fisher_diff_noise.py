@@ -17,7 +17,8 @@ import json
 #get the necessary arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default='params/params_planck_r_0.0_2015_cosmo_lensed_LSS.txt')
-parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='total', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar', 'unlensed_total', 'total']) # add delensed
+parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='delensed_scalar', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar', 'unlensed_total', 'total']) # add delensed
+#parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='total', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar', 'unlensed_total', 'total']) # add delensed
 
 #reduce lensing amplitude by xx per cent. Roughly mimicking S4-Wide delensing.
 parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=1) 
@@ -81,6 +82,7 @@ params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['neff', 'thetastar']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
+#fix_params = ['r','ns', 'ombh2', 'thetastar']
 #prior_dic = {'tau':0.007} #Planck-like tau prior
 prior_dic = {'tau':0.007, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 # prior 1: A:1e-17, alpha:1, prior2: A:5e-18, alpha:1, prior3: A:5e-18, alpha:1,
@@ -213,23 +215,37 @@ for i in range(len(rms_map_T_list)):
 
     #'''
     cov_nongaussian = {}
-    Lsdl = 50
+    Lsdl = 20
+    binsize = 10   #rebin in calculating the cov^-1
+    camborDl  = "Dl" # "camb" or "Dl"
+    derivname = "selfdriv" # "camb" or "selfdriv"
+    camborself = "self"
     Ls_to_get = np.arange(2, 5000, Lsdl)
-    file_exists = exists("derivs/diffphi_dl%s_camb.json"%(Lsdl))
-    file_exists = False
+    file_exists = exists("derivs/diffphi_dl%s_%s.json"%(Lsdl, camborDl))
+    #file_exists = False
     if which_spectra == "delensed_scalar":        
-        file_exists = False
+        file_exists = exists("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i]))
+        #file_exists = False
 
     diff_EE_dict = {}; diff_self_dict = {}; diff_phi_dict = {}
 
     if file_exists:
-        print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
-        with open("derivs/diffphi_dl%s_camb.json"%(Lsdl)) as infile:
-            diff_phi_data = json.load(infile)
-        with open("derivs/diffself_dl%s_camb.json"%(Lsdl)) as infile:
-            diff_self_data = json.load(infile)
-        with open("derivs/diffee_dl%s_camb.json"%(Lsdl)) as infile:
-            diff_EE_data = json.load(infile)
+        if which_spectra == "delensed_scalar":        
+            print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
+            with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i])) as infile:
+                diff_phi_data = json.load(infile)
+            with open("derivs/diffself_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i])) as infile:
+                diff_self_data = json.load(infile)
+            with open("derivs/diffee_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i])) as infile:
+                diff_EE_data = json.load(infile)
+        else:
+            print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
+            with open("derivs/diffphi_dl%s_%s.json"%(Lsdl, camborDl)) as infile:
+                diff_phi_data = json.load(infile)
+            with open("derivs/diffself_dl%s_%s.json"%(Lsdl, camborDl)) as infile:
+                diff_self_data = json.load(infile)
+            with open("derivs/diffee_dl%s_%s.json"%(Lsdl, camborDl)) as infile:
+                diff_EE_data = json.load(infile)
 
         diff_EE_dict['BB'] = np.asarray(diff_EE_data['BB'])
         diff_self_dict['TT'] = np.asarray(diff_self_data['TT'])
@@ -242,9 +258,10 @@ for i in range(len(rms_map_T_list)):
 
     else:
         print("Calculate diffphi, diffe, diffself!")
-        #diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
-
-        diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05)
+        if camborDl == "camb":
+            diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05, noiseTi  = rms_map_T_list[i])
+        else:
+            diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05, noiseTi = rms_map_T_list[i])
     
     
     delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
@@ -257,7 +274,7 @@ for i in range(len(rms_map_T_list)):
     #get Fisher
     logline = '\tget fisher'; tools.write_log(logline)
     F_mat, covmat, [new_delta_dict, new_deriv_dict] = tools.get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
-                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None, binsize = 10, include_B = True)
+                                            min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None, binsize = binsize, include_B = True)
     '''
     Fttmat, Feemat, Ftteemat = tools.get_fisher_mat3(els, cl_deriv_dict, delta_cl_dict, param_names, pspectra_to_use = pspectra_to_use,\
                                             min_l_temp = min_l_temp, max_l_temp = max_l_temp, min_l_pol = min_l_pol, max_l_pol = max_l_pol, delta_cl_dict_nongau = None)
@@ -293,7 +310,7 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_inv_bin10_BB_phiphi_selfdriv_%s_dl%s_n%s_fwhm%s.txt'%(which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    with open('results_inv_bin%s_BB_phiphi_%s_cut30_%s_dl%s_n%s_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
@@ -309,10 +326,18 @@ for i in range(len(rms_map_T_list)):
             outfile.write('sigma(%s),%g\n'%(desired_param, sigma))
             ############################################################################################################
 
+
+    out_dict = {}
+    out_dict['parms'] = param_names.tolist()
+    out_dict['Fmat'] = F_mat.tolist()
+    out_dict['cov_mat'] = cov_mat.tolist()
+    out_dict['fsky'] = fsky
+
+    with open("results/F_mat_%s_bin%s_dl%s_%s_n%s.json"%(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i]), 'w') as fp:
+            j = json.dump({k: v for k, v in out_dict.items()}, fp)
+
 #sys.exit()
-
-
-ax = plt.subplot(111, yscale = 'log')
-dl_fac = els * (els+1)/2/np.pi
+#ax = plt.subplot(111, yscale = 'log')
+#dl_fac = els * (els+1)/2/np.pi
 #dneff = cl_deriv_dict['neff']
 
