@@ -363,9 +363,10 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
     step_size_dict_for_derivatives = {\
     'ombh2' : 0.0008,
     'omch2' : 0.0030,
-    ###'tau' : 0.020,
-    'tau':0.0002,
-    'As': 0.1e-11,
+    'tau' : 0.020,
+    ###'tau':0.0002,
+    ###'As': 0.1e-11,
+    'As': 0.1e-9,
     'ns' : 0.010,
     ###'ws' : -1e-2,
     ###'neff': 0.080,
@@ -533,7 +534,7 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
             print("which_spectra is %s"%(which_spectra))
             deriv_filter = np.zeros(dB_dE_dict['BB'].shape)
             #deriv_filter = np.ones(dB_dE_dict['BB'].shape)
-            deriv_filter[4:, 30:] = 1
+            deriv_filter[8:, 30:] = 1
             sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EEEE'][Ls_to_get-2], dB_dE_dict['BB']*deriv_filter)
             sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict['BB']*deriv_filter)
             dl = Ls_to_get[1] - Ls_to_get[0]
