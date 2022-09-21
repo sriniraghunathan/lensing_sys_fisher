@@ -33,18 +33,20 @@ camborself = "self"
 binsize = 10
 
 
-with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("delensed_scalar", binsize, Lsdl, camborself, rms_map_T_list[5])) as infile:
+with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("delensed_scalar", binsize, Lsdl, camborself, rms_map_T_list[0])) as infile:
     F_matdelen = json.load(infile)
-with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("total", binsize, Lsdl, camborself, rms_map_T_list[5])) as infile:
+with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("total", binsize, Lsdl, camborself, rms_map_T_list[0])) as infile:
     F_matlen = json.load(infile)
-with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("unlensed_total", 5, 5, "self", rms_map_T_list[5])) as infile:
+with open("results/F_mat_CDMp_prior_%s_bin%s_dl%s_%s_n%s.json"%("unlensed_total", 5, 5, "self", rms_map_T_list[0])) as infile:
     F_matunlen = json.load(infile)
+with open("results/F_mat_CDMp_prior3_lensys_%s_bin%s_dl%s_%s_n%s.json"%("delensed_scalar", binsize, Lsdl, camborself, rms_map_T_list[0])) as infile:
+    F_matdelensys = json.load(infile)
 
 
 logline = '\tget/read the parameter file'; tools.write_log(logline)
 param_dict = tools.get_ini_param_dict(paramfile)
 
-param_list = F_matlen['parms']
+param_list = F_matdelen['parms']
 
 para_value = {}
 for item in param_list:
@@ -56,8 +58,9 @@ Fmatlen = np.asarray(F_matlen['Fmat'])
 cov_matlen = np.asarray(F_matlen['cov_mat'])
 Fmatunlen = np.asarray(F_matunlen['Fmat'])
 cov_matunlen = np.asarray(F_matunlen['cov_mat'])
-Fmatlen = Fmatdelen
-cov_matlen = cov_matdelen
+Fmatdelensys = np.asarray(F_matdelensys['Fmat'])
+cov_matdelensys = np.asarray(F_matdelensys['cov_mat'])
+
 pnum = len(param_list)
 
 print(cov_matlen)
@@ -76,35 +79,65 @@ for i, p1 in enumerate(param_list):
             axes[i,j].axis('off')
             #for j, p2 in enumerate(param_list[:i+1]):        
         elif i==j:
-            sigmai = cov_matlen[i,i]**0.5
+            sigmai = cov_matdelen[i,i]**0.5
+            sigmailen = cov_matlen[i,i]**0.5
+            sigmaiunlen = cov_matunlen[i,i]**0.5
             valuei = para_value[p1]
             xst = valuei - sigmai*4
             xed = valuei + sigmai*4
             x = np.linspace(xst, xed, 40)            
             coe = 1.0 / (2 * np.pi)**0.5 / sigmai
             Z = np.exp (-0.5 * ((x-valuei)/sigmai)**2)
-            axes[i,i].plot(x, Z)
+            Zlen = np.exp (-0.5 * ((x-valuei)/sigmailen)**2)
+            Zunlen = np.exp (-0.5 * ((x-valuei)/sigmaiunlen)**2)
+            axes[i,i].plot(x, Z, 'green')
+            axes[i,i].plot(x, Zlen, 'blue')
+            axes[i,i].plot(x, Zunlen, 'orange')
             print('i = ',i)
             #axes[i,j].xlim
         else:
-            sigmai = cov_matlen[i,i]**0.5
-            sigmaj = cov_matlen[j,j]**0.5
+            sigmai = cov_matdelen[i,i]**0.5
+            sigmaj = cov_matdelen[j,j]**0.5
             valuei = para_value[p1]
             valuej = para_value[p2]
+            sigmailen = cov_matlen[i,i]**0.5
+            sigmajlen = cov_matlen[j,j]**0.5
+            sigmaiunlen = cov_matunlen[i,i]**0.5
+            sigmajunlen = cov_matunlen[j,j]**0.5
             xst = valuej - sigmaj*5
             xed = valuej + sigmaj*5
             yst = valuei - sigmai*5
             yed = valuei + sigmai*5
-            x = np.linspace(xst, xed, 40)
-            y = np.linspace(yst, yed, 40)
+            x = np.linspace(xst, xed, 80)
+            y = np.linspace(yst, yed, 80)
             X,Y = np.meshgrid(x,y)
             coe = 1.0 / ((2 * np.pi)**2 * np.linalg.det(cov_matlen))**0.5
-            Z = np.e ** (-0.5 * (Fmatlen[j,j]*(X-valuej)**2 + (Fmatlen[j,i] + Fmatlen[i,j])*(X-valuej)*(Y-valuei) + Fmatlen[i,i]*(Y-valuei)**2))
-            z1 = np.exp(-0.5 * (Fmatlen[j,j]*(sigmaj)**2 + (Fmatlen[j,i] + Fmatlen[i,j])*(sigmaj)*(sigmai) + Fmatlen[i,i]*(sigmai)**2))
-            z3 = np.exp(-0.5 * (Fmatlen[j,j]*(3*sigmaj)**2 + (Fmatlen[j,i] + Fmatlen[i,j])*(3*sigmaj)*(3*sigmai) + Fmatlen[i,i]*(3*sigmai)**2))
+            Fmatdelen = np.matrix([[cov_matdelen[j,j], cov_matdelen[j,i]],[cov_matdelen[i,j],cov_matdelen[i,i]]]).I
+            Fmatlen = np.matrix([[cov_matlen[j,j], cov_matlen[j,i]],[cov_matlen[i,j],cov_matlen[i,i]]]).I
+            Fmatunlen = np.matrix([[cov_matunlen[j,j], cov_matunlen[j,i]],[cov_matunlen[i,j],cov_matunlen[i,i]]]).I
+            '''
+            Z = np.exp(-0.5 * (Fmatdelen[j,j]*(X-valuej)**2 + (Fmatdelen[j,i] + Fmatdelen[i,j])*(X-valuej)*(Y-valuei) + Fmatdelen[i,i]*(Y-valuei)**2))
+            z1 = np.exp(-0.5 * (Fmatdelen[j,j]*(sigmaj)**2 + (Fmatdelen[j,i] + Fmatdelen[i,j])*(sigmaj)*(sigmai) + Fmatdelen[i,i]*(sigmai)**2))
+            z3 = np.exp(-0.5 * (Fmatdelen[j,j]*(3*sigmaj)**2 + (Fmatdelen[j,i] + Fmatdelen[i,j])*(3*sigmaj)*(3*sigmai) + Fmatdelen[i,i]*(3*sigmai)**2))
+            Zlen = np.exp(-0.5 * (Fmatlen[j,j]*(X-valuej)**2 + (Fmatlen[j,i] + Fmatlen[i,j])*(X-valuej)*(Y-valuei) + Fmatlen[i,i]*(Y-valuei)**2))
+            z1len = np.exp(-0.5 * (Fmatlen[j,j]*(sigmaj)**2 + (Fmatlen[j,i] + Fmatlen[i,j])*(sigmaj)*(sigmai) + Fmatlen[i,i]*(sigmai)**2))
+            Zunlen = np.exp(-0.5 * (Fmatunlen[j,j]*(X-valuej)**2 + (Fmatunlen[j,i] + Fmatunlen[i,j])*(X-valuej)*(Y-valuei) + Fmatunlen[i,i]*(Y-valuei)**2))
+            z1unlen = np.exp(-0.5 * (Fmatunlen[j,j]*(sigmaj)**2 + (Fmatunlen[j,i] + Fmatunlen[i,j])*(sigmaj)*(sigmai) + Fmatunlen[i,i]*(sigmai)**2))
+            '''
+            Z = np.exp(-0.5 * (Fmatdelen[0,0]*(X-valuej)**2 + (Fmatdelen[0,1] + Fmatdelen[1,0])*(X-valuej)*(Y-valuei) + Fmatdelen[1,1]*(Y-valuei)**2))
+            z1 = np.exp(-0.5 * (Fmatdelen[0,0]*(sigmaj)**2 + (Fmatdelen[0,1] + Fmatdelen[1,0])*(sigmaj)*(sigmai) + Fmatdelen[1,1]*(sigmai)**2))
+            z3 = np.exp(-0.5 * (Fmatdelen[0,0]*(3*sigmaj)**2 + (Fmatdelen[0,1] + Fmatdelen[1,0])*(3*sigmaj)*(3*sigmai) + Fmatdelen[1,1]*(3*sigmai)**2))
+
+            Zlen = np.exp(-0.5 * (Fmatlen[0,0]*(X-valuej)**2 + (Fmatlen[0,1] + Fmatlen[1,0])*(X-valuej)*(Y-valuei) + Fmatlen[1,1]*(Y-valuei)**2))
+            z1len = np.exp(-0.5 * (Fmatlen[0,0]*(sigmaj)**2 + (Fmatlen[0,1] + Fmatlen[1,0])*(sigmaj)*(sigmai) + Fmatlen[1,1]*(sigmai)**2))
+            Zunlen = np.exp(-0.5 * (Fmatunlen[0,0]*(X-valuej)**2 + (Fmatunlen[0,1] + Fmatunlen[1,0])*(X-valuej)*(Y-valuei) + Fmatunlen[1,1]*(Y-valuei)**2))
+            z1unlen = np.exp(-0.5 * (Fmatunlen[0,0]*(sigmaj)**2 + (Fmatunlen[0,1] + Fmatunlen[1,0])*(sigmaj)*(sigmai) + Fmatunlen[1,1]*(sigmai)**2))
+
             #print('z3, z1',z3, z1)
             cs = axes[i,j].contourf(X,Y,Z,[z3, z1, 1], colors=['yellowgreen', 'olive', 'honeydew'])
-            cs.cmap.set_over('blue')
+            cslen = axes[i,j].contour(X,Y,Zlen,[z1len, 1], colors=['blue', 'yellow'])
+            csunlen = axes[i,j].contour(X,Y,Zunlen,[z1unlen, 1], colors=['orange', 'yellow'])
+            #cs.cmap.set_over('blue')
             axes[i,j].set_ylim([yst, yed])
             axes[i,j].set_xlim([xst, xed])
             print('i, j', i,j ,p1, p2)
@@ -116,7 +149,7 @@ for i, p1 in enumerate(param_list):
                 axes[i,j].set_xlabel(p2)
 plt.subplots_adjust(wspace=0, hspace=0)
 #plt.tight_layout()
-plt.savefig('compare_CDMp_prior_cov_noise6_phi_dl%s_%s_delen.png'%(dl, camborself))
+plt.savefig('compare_CDMp_prior_all_cov_noise1_phi_dl%s_%s_delen.png'%(dl, camborself))
 
 '''
 
