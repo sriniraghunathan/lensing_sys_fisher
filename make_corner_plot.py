@@ -72,7 +72,9 @@ if (1): #add legend
     axis('off')
 
 param_names_str = '-'.join(desired_params_to_plot)
-plname = 'plots/constraints_%s_noiselevel%s' %(param_names_str, noise_level)
+plfolder = 'plots/'
+if not os.path.exists(plfolder): os.system('mkdir -p %s' %(plfolder))
+plname = '%s/constraints_%s_noiselevel%s' %(plfolder, param_names_str, noise_level)
 if tau_prior is not None:
     plname = '%s_tauprior%s' %(plname, tau_prior)
 plname = '%s.png' %(plname)
