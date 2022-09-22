@@ -843,6 +843,8 @@ def get_cov(TT, EE, TE, PP, TP, EP):
 
 def get_fisher_inv(F_mat):
 
+    F_mat = np.asarray(F_mat)
+
     Flen = len(F_mat)
     all_inds = np.arange(Flen)
 
