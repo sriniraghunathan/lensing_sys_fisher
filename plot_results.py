@@ -24,6 +24,8 @@ un_array=np.asarray(unlen_results['value'])
 '''
 
 delen_results=pd.read_csv('results_lensys_delensed_scalar_n1_fwhm1.0.txt')
+delen_results=pd.read_csv('results_invCll_TT_delensed_scalar_n1_fwhm1.0.txt')
+
 delen_array=np.asarray(delen_results['value'])
 param_list = []
 
@@ -40,19 +42,23 @@ delen_sigma_prior2 = np.zeros((len(rms_map_T_list), len(param_list)))
 unlen_sigma_array = np.zeros((len(rms_map_T_list), len(param_list)))
 
 for i, item in enumerate(rms_map_T_list):
-    delen_results=pd.read_csv('results_lensys_delensed_scalar_n%s_fwhm1.0.txt'%(item))
-    delen_results_prior=pd.read_csv('results_prior_lensys_delensed_scalar_n%s_fwhm1.0.txt'%(item))
-    delen_results_prior2=pd.read_csv('results_prior4_lensys_delensed_scalar_n%s_fwhm1.0.txt'%(item))
-    delen_results2=pd.read_csv('results_nolensys_delensed_delensed_scalar_n%s_fwhm1.0.txt'%(item))
-    len_results=pd.read_csv('results_lensys_lensed_scalar_n%s_fwhm1.0.txt'%(item))
-    unlen_results=pd.read_csv('results_lensys_unlensed_scalar_n%s_fwhm1.0.txt'%(item))
+    delen_results=pd.read_csv('results_invCll_TT_delensed_scalar_n%s_fwhm1.0.txt'%(item))
+    #delen_results_prior=pd.read_csv('results_prior_lensys_delensed_scalar_n%s_fwhm1.0.txt'%(item))
+    #delen_results_prior2=pd.read_csv('results_prior4_lensys_delensed_scalar_n%s_fwhm1.0.txt'%(item))
+    #delen_results2=pd.read_csv('results_nolensys_delensed_delensed_scalar_n%s_fwhm1.0.txt'%(item))
+    #len_results=pd.read_csv('results_lensys_lensed_scalar_n%s_fwhm1.0.txt'%(item))
+    #unlen_results=pd.read_csv('results_lensys_unlensed_scalar_n%s_fwhm1.0.txt'%(item))
+    len_results=pd.read_csv('results_invCll_TT_total_n%s_fwhm1.0.txt'%(item))
+    unlen_results=pd.read_csv('results_invCll_TT_unlensed_total_n%s_fwhm1.0.txt'%(item))
 
     delen_sigma_array[i] = np.asarray(delen_results['value'])
-    delen_sigma_prior[i] = np.asarray(delen_results_prior['value'])
-    delen_sigma_prior2[i] = np.asarray(delen_results_prior2['value'])
-    delen_sigma_array2[i] = np.insert(np.asarray(delen_results2['value']),0, np.zeros(2), axis = 0)
-    len_sigma_array[i] = np.insert(np.asarray(len_results['value']), 0, np.zeros(2), axis = 0)
-    unlen_sigma_array[i] = np.insert(np.asarray(unlen_results['value']), 0, np.zeros(2), axis = 0)
+    #delen_sigma_prior[i] = np.asarray(delen_results_prior['value'])
+    #delen_sigma_prior2[i] = np.asarray(delen_results_prior2['value'])
+    #delen_sigma_array2[i] = np.insert(np.asarray(delen_results2['value']),0, np.zeros(2), axis = 0)
+    #len_sigma_array[i] = np.insert(np.asarray(len_results['value']), 0, np.zeros(2), axis = 0)
+    #unlen_sigma_array[i] = np.insert(np.asarray(unlen_results['value']), 0, np.zeros(2), axis = 0)
+    len_sigma_array[i] = np.asarray(len_results['value'])
+    unlen_sigma_array[i] = np.asarray(unlen_results['value'])
 
 
 
@@ -74,12 +80,13 @@ plt.figure(figsize = (12,12))
 for i, item in enumerate(param_list):
     axi = plt.subplot(3,3,i+1)
     axi.plot(rms_map_T_list, delen_sigma_array[:,i])
-    axi.plot(rms_map_T_list, delen_sigma_prior[:,i])
-    axi.plot(rms_map_T_list, delen_sigma_prior2[:,i])
-    axi.plot(rms_map_T_list, delen_sigma_array2[:,i])
+    #axi.plot(rms_map_T_list, delen_sigma_prior[:,i])
+    #axi.plot(rms_map_T_list, delen_sigma_prior2[:,i])
+    #axi.plot(rms_map_T_list, delen_sigma_array2[:,i])
     axi.plot(rms_map_T_list, len_sigma_array[:,i])
     axi.plot(rms_map_T_list, unlen_sigma_array[:,i])
-    axi.legend(['delensed','delensed_prior(A:1e-17, alpha:1)','delensed_prior(A:5e-19, alpha:0.2)','delensed_nonsys','lensed','unlensed'],loc="lower center")
+    #axi.legend(['delensed','delensed_prior(A:1e-17, alpha:1)','delensed_prior(A:5e-19, alpha:0.2)','delensed_nonsys','lensed','unlensed'],loc="lower center")
+    axi.legend(['delensed','lensed','unlensed'],loc="lower center")
     #axi.legend(['delensed'],loc="lower center")
     axi.set_title(param_list[i])
 
@@ -91,7 +98,7 @@ for ni in rms_map_T_list:
 #axi.legend([+'nsys')
 axi.loglog(nels, nsys,  linewidth=1.5)
 plt.tight_layout()
-plt.savefig('compare_lensys_diff_noise_sigma_n0sys2.png')
+plt.savefig('compare_lensys_diff_noise_sigma_invCll_TT.png')
 
 
 
