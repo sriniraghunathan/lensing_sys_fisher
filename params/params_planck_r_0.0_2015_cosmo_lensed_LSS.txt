@@ -12,8 +12,12 @@ neff=3.046
 omk=0
 tau=0.060
 ns=0.9655
+<<<<<<< HEAD
 #r=0.0
 r = 0.001
+=======
+r=0.001 ##0.0
+>>>>>>> 46e0efea0d7d18f2f3074bf43cd15fbdc821fdf8
 ws = -1.
 YHe = None ##0.2454006
 Alens = 1.
