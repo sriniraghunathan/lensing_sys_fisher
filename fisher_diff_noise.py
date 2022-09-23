@@ -76,16 +76,19 @@ min_l_pol, max_l_pol = 30, 5000
 #params_to_constrain = ['As', 'neff', 'ns', 'ombh2', 'omch2', 'tau', 'thetastar', 'mnu']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
 ###params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
-params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','A_phi_sys', 'alpha_phi_sys']
+#params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','A_phi_sys', 'alpha_phi_sys']
+params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['r', 'thetastar']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['neff', 'thetastar']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 #fix_params = ['r','ns', 'ombh2', 'thetastar']
-prior_dic = {'tau':0.007} #Planck-like tau prior
+#prior_dic = {'tau':0.007} #Planck-like tau prior
+#prior_dic = {'tau':0.002} #Planck-like tau prior
+prior_dic = {}
 #prior_dic = {'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
-######prior_dic = {'tau':0.007, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
+#prior_dic = {'tau':0.002, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 # prior 1: A:1e-17, alpha:1, prior2: A:5e-18, alpha:1, prior3: A:5e-18, alpha:1,
 if lensing_sys_n0_frac>0.:
     pass
@@ -270,7 +273,7 @@ for i in range(len(rms_map_T_list)):
             diff_EE_dict, diff_phi_dict, diff_self_dict = tools.get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = Ls_to_get, percent=0.05, noiseTi = rms_map_T_list[i])
     
     
-    delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = True, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
+    delta_cl_dict = tools.get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, include_B = True, dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, which_spectra = which_spectra, Ls_to_get = Ls_to_get)
     #diff_dict = tools.get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, nl_dict, Ls_to_get, percent=0.05)
     #delta_cl_dict_nongau = tools.get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diff_dict, delta_cl_dict, els, cl_phiphi, nl_dict)
 
@@ -331,7 +334,7 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_CDMp_prior_lensys_inv_bin%s_BB_phiphi_%s_cut30_%s_dl%s_n%s_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    with open('results_CDMp_test_inv_bin%s_BB_%s_cut30_%s_dl%s_n%s_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
@@ -354,7 +357,7 @@ for i in range(len(rms_map_T_list)):
     out_dict['cov_mat'] = cov_mat.tolist()
     out_dict['fsky'] = fsky
 
-    with open("results/F_mat_CDMp_prior_lensys_%s_bin%s_dl%s_%s_n%s.json"%(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i]), 'w') as fp:
+    with open("results/F_mat_CDMp_test_%s_bin%s_dl%s_%s_n%s.json"%(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i]), 'w') as fp:
             j = json.dump({k: v for k, v in out_dict.items()}, fp)
 
 #sys.exit()
