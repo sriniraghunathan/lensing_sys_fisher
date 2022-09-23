@@ -531,24 +531,28 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
                 print(cov_dict.keys())
         
         if which_spectra == "total" or which_spectra == "delensed_scalar":
-            print("which_spectra is %s"%(which_spectra))
-            deriv_filter = np.zeros(dB_dE_dict['BB'].shape)
-            #deriv_filter = np.ones(dB_dE_dict['BB'].shape)
-            deriv_filter[8:, 30:] = 1
-            sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EEEE'][Ls_to_get-2], dB_dE_dict['BB']*deriv_filter)
-            sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict['BB']*deriv_filter)
-            dl = Ls_to_get[1] - Ls_to_get[0]
-            cov_dict['BBBB'] = np.diag(term1) + sumle*dl + sumlp*dl
-            print('BBBB: ', cov_dict['BBBB'])
-            dxylen_dxyulen = diff_self_dict
-            #dxylen_dxyulen[Ls_to_get-1] = 1
-            #dxylen_dxyulen = np.fll_diagonal(dxylen_dxyulen, 1)
+            cov_dict['BBBB'] = np.diag(term1)
             for item in clname:
-                sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EE'+item][Ls_to_get-2], dxylen_dxyulen[item]*deriv_filter)
-                sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict[item]*deriv_filter)
-                cov_dict['BB'+item] = sumlp*dl + sumle*dl
-                #cov_dict['BB'+item] = np.zeros((cov_dict['BBBB'].shape))
-                print(cov_dict.keys())
+                cov_dict['BB'+item] = np.zeros(cov_dict['BBBB'].shape)
+
+            print("which_spectra is %s"%(which_spectra))
+            if include_lensing:
+                deriv_filter = np.zeros(dB_dE_dict['BB'].shape)
+                deriv_filter[8:, 30:] = 1
+                sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EEEE'][Ls_to_get-2], dB_dE_dict['BB']*deriv_filter)
+                sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict['BB']*deriv_filter)
+                dl = Ls_to_get[1] - Ls_to_get[0]
+                cov_dict['BBBB'] = cov_dict['BBBB'] + sumle*dl + sumlp*dl
+                print('BBBB: ', cov_dict['BBBB'])
+                dxylen_dxyulen = diff_self_dict
+                #dxylen_dxyulen[Ls_to_get-1] = 1
+                #dxylen_dxyulen = np.fll_diagonal(dxylen_dxyulen, 1)
+                for item in clname:
+                    sumle = np.einsum('ai,a,aj->ij', dB_dE_dict['BB']*deriv_filter, cov_dict['EE'+item][Ls_to_get-2], dxylen_dxyulen[item]*deriv_filter)
+                    sumlp = np.einsum('ai,a,aj->ij', diff_phi_dict['BB']*deriv_filter, cov_dict['PPPP'][Ls_to_get-2], diff_phi_dict[item]*deriv_filter)
+                    cov_dict['BB'+item] = sumlp*dl + sumle*dl
+                    #cov_dict['BB'+item] = np.zeros((cov_dict['BBBB'].shape))
+                    print(cov_dict.keys())
 
         print('BBBB: ', cov_dict['BBBB'])
     
