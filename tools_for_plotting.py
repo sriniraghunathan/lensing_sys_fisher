@@ -17,6 +17,7 @@ def get_latex_param_str(param, use_H = False):
     'rho_snr_mlens': r'$\rho_{\rm SNR-lens}$', \
     'slope_vir': r'$A_{\rm v}$', 'intercept_vir': r'$B_{\rm v}$', \
     'r': r'$r$', \
+    'A_phi_sys': r'$A_{\phi}^{\rm sys}$', 'alpha_phi_sys': r'$\alpha_{\phi}^{\rm sys}$', \
     }
 
     if use_H:
@@ -96,7 +97,7 @@ def get_Gaussian(mean, sigma, minx, maxx, delx):
     return x, np.exp( -(x - mean)**2. / (2 * sigma**2.)  )
 
 #def make_triangle_plot(exparr, F_dic, param_dict, tr, tc, param_names, desired_params_to_plot, fix_params, color_dic, ls_dic = None, one_or_two_sigma = 1, fsval = 12, use_percent = False, use_H = False, fix_axis_range_to_xxsigma = 4., lwval = 1.5, upper_or_lower_triangle = 'lower', write_titles = True, show_diagonal = True, legloc = 4):
-def make_triangle_plot(exparr, F_dic, param_dict, param_names, desired_params_to_plot, color_dic, ls_dic = None, one_or_two_sigma = 1, fsval = 12, use_percent = False, use_H = False, fix_axis_range_to_xxsigma = 4., lwval = 1., upper_or_lower_triangle = 'lower', write_titles = True, show_diagonal = True, legloc = 4):
+def make_triangle_plot(exparr, F_dic, param_dict, param_names, desired_params_to_plot, color_dic, ls_dic = None, one_or_two_sigma = 1, fsval = 12, use_percent = False, use_H = False, fix_axis_range_to_xxsigma = 3., lwval = 1., upper_or_lower_triangle = 'lower', write_titles = True, show_diagonal = True, legloc = 4):
 
     #cosmo_param_pl_chars_dict, param_names_to_plot = get_cosmo_param_pl_chars_dict(param_names, fix_params, desired_params_to_plot, use_H)
     cosmo_param_pl_chars_dict, param_names_to_plot = get_cosmo_param_pl_chars_dict(param_names, desired_params_to_plot, use_H)
@@ -125,7 +126,7 @@ def make_triangle_plot(exparr, F_dic, param_dict, param_names, desired_params_to
             y, deltay = param_dict[p2]
 
             #deltax, deltay = x/10., y/10. #rough plotting limits
-            epsilon_x, epsilon_y = x/10000., y/10000. #for Gaussian 1d curve.
+            epsilon_x, epsilon_y = abs(x/10000.), abs(y/10000.) #for Gaussian 1d curve.
 
             #if p1 == 'As': x*=1e9
             #if p2 == 'As':  y*=1e9
@@ -210,9 +211,12 @@ def make_triangle_plot(exparr, F_dic, param_dict, param_names, desired_params_to
                     lsarr = ls_dic[expcntr]
                     handlelength = 1.5
                 else:
-                    lsarr = ['-', '-']
+                    lsarr = ['-', '-', '-']
                     handlelength = 1.5
-                alphaarr = [1., 0.5]
+                alphaarr = [1., 0.5, 0.25]
+                if len(colorarr) == 1:
+                    colorarr = np.tile(colorarr[0], len(alphaarr))
+
                 for ss in range(one_or_two_sigma):
                     
                     if p1 == p2:
