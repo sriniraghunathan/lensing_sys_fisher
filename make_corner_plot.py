@@ -31,7 +31,8 @@ param_dict_ori = tools.get_ini_param_dict(paramfile)
 #read the Fisher matrices and push into a dictionary
 fix_params = ['r']
 fix_params = []#'alpha_phi_sys']#, 'ombh2']#, 'omch2']#, 'thetastar']
-fix_params = ['As', 'alpha_phi_sys', 'ombh2', 'omch2', 'thetastar', 'r', 'ns', 'tau']
+#fix_params = ['ombh2', 'omch2', 'thetastar']
+#fix_params = ['As', 'alpha_phi_sys', 'ombh2', 'omch2', 'thetastar', 'r', 'ns', 'tau']
 #fix_params = ['r', 'ombh2', 'thetastar', 'tau']
 prior_dic = {}
 if tau_prior is not None:
@@ -67,13 +68,14 @@ for p in param_names:
 ##sys.exit()
  
 desired_params_to_plot = param_names #params that must be plotted. Can be a subset of param_names or just param_names (if you want to plot all of them).
+#desired_params_to_plot = ['A_phi_sys', 'As', 'alpha_phi_sys', 'ns', 'r', 'tau']
 #desired_params_to_plot = ['A_phi_sys', 'alpha_phi_sys', 'As', 'ombh2', 'ns']
 #print(desired_params_to_plot); sys.exit()
 figlen = len(desired_params_to_plot) + 4
 clf()
 figure(figsize=(figlen, figlen))
 fix_axis_range_to_xxsigma = 4. ##None
-tools_for_plotting.make_triangle_plot(which_spectra_arr, F_dict, param_dict, param_names, desired_params_to_plot, color_dict, fsval = fsval, lwval = lwval, fix_axis_range_to_xxsigma = fix_axis_range_to_xxsigma)
+tools_for_plotting.make_triangle_plot(which_spectra_arr, F_dict, param_dict, param_names, desired_params_to_plot, color_dict, fsval = fsval, lwval = lwval, fix_axis_range_to_xxsigma = fix_axis_range_to_xxsigma, upper_or_lower_triangle = 'upper')
 
 if (1): #add legend
     tr = tc = len(desired_params_to_plot)
@@ -99,6 +101,6 @@ if tau_prior is not None:
     plname = '%s_tauprior%s' %(plname, tau_prior)
 plname = '%s_fsky%s.png' %(plname, reqd_fsky)
 print(plname)
-savefig(plname, dpi = 300.)
-#show(); 
+#savefig(plname, dpi = 300.)
+show(); 
 sys.exit()

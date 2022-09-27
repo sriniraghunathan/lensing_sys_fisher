@@ -239,7 +239,7 @@ def make_triangle_plot(exparr, F_dic, param_dict, param_names, desired_params_to
                             #labval = r'%.3g' %(widthval)
                             #labval = r'%.4f' %(widthval)
                             labval = r'%.4g' %(widthval)
-                        if totparamstoplot==1:
+                        if (0):#totparamstoplot==1:
                             labval = r'%s: %s' %(exp_dic[exp]['label'], labval)
                         plot(hor, ver, color = colorarr[ss], ls = lsarr[ss], lw = lwval, label = labval)                    
                         if legloc == 1:
