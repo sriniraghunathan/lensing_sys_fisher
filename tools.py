@@ -244,7 +244,8 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         print('cphi: ',cphifun(els))
         print('n0: ', n0fun(els))
         print('nlsys: ', get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
-        clpp = cl_phiphi * winf**1 * (els*(els+1))**2/2/np.pi
+        recov_cl_phiphi = cl_phiphi + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
+        clpp = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
 
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
@@ -419,14 +420,16 @@ def get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, n
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
         winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
-        clpp = cl_phiphi * winf0**1 * (els*(els+1))**2/2/np.pi
+        recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
+        clpp = recov_cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi        
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
         thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
         diff = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
         for i, Li in enumerate(Ls_to_get):
-            clpp[Li-2] = cl_phiphi[Li-2]*(1+percent)
+            clpp[Li-2] = cl_phiphi[Li-2]*(1+percent)            
             winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
-            clpp = cl_phiphi * winf**1 * (els*(els+1))**2/2/np.pi
+            recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
+            clpp = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
             diff[i] = (thyresi - thyres0)/(clpp[Li]*percent)
@@ -715,7 +718,8 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
         winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
-        clpp = cl_phiphi * winf0**1 * (els*(els+1))**2/2/np.pi
+        recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
+        clpp = recov_cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
         thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
         diffp = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
@@ -725,7 +729,8 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             clphii = cl_phiphi.copy()
             clphii[Li-2] = cl_phiphi[Li-2]*(1+percent)
             winf = clphii / (nl_dict['PP'] + clphii + nl_dict['SYS'])
-            clppi = clphii * winf**1 * (els*(els+1))**2/2/np.pi
+            recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
+            clppi = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             clppi = np.insert(clppi, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clppi, lmax = els[-1])
             clsi = cls.copy()
