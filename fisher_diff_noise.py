@@ -32,7 +32,7 @@ parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='
 #ILC residual file
 parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 0)
 #or add noise levels (only used if use_ilc_nl = 0)
-parser.add_argument('-rms_map_T', dest='rms_map_T', action='store', help='rms_map_T', type=float, default = 2.)
+parser.add_argument('-rms_map_T', dest='rms_map_T', action='store', help='rms_map_T', type=float, default = -1)
 parser.add_argument('-fwhm_arcmins', dest='fwhm_arcmins', action='store', help='fwhm_arcmins', type=float, default = 1.4)
 #parser.add_argument('-rms_map_T_list', dest='rms_map_T_list', action='store',help='rms_map_T_list',type=float, default = np.arange(1,11,1))
 #parser.add_argument('-rms_map_T_list', dest='rms_map_T_list', action='store',help='rms_map_T_list',type=<class 'numpy.ndarray'>, default = np.arange(1,11,1))
@@ -55,8 +55,10 @@ for kargs in args_keys:
 if debug: from pylab import *
 logline='\nstart Fisher forecasting\n'; tools.write_log(logline)
 
-
-rms_map_T_list = np.arange(1,11,1)
+if rms_map_T == -1:
+    rms_map_T_list = np.arange(1,11,1)
+else:
+    rms_map_T_list = [rms_map_T]
 fwhm_list = np.ones(10)
 
 ############################################################################################################
