@@ -61,6 +61,7 @@ else:
     rms_map_T_list = [rms_map_T]
 fwhm_list = np.ones(10)
 
+if not os.path.exists('derivs/'): os.system('mkdir -p derivs')
 ############################################################################################################
 #get experiment specs
 logline = '\tset lmax / power spectra to be used'; tools.write_log(logline)
