@@ -18,7 +18,7 @@ import json
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default='params/params_planck_r_0.0_2015_cosmo_lensed_LSS.txt')
 #parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='delensed_scalar', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar', 'unlensed_total', 'total']) # add delensed
-parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='total', choices=['lensed_scalar', 'unlensed_scalar', 'delensed_scalar', 'unlensed_total', 'total']) # add delensed
+parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='total', choices=['delensed_scalar', 'unlensed_total', 'total']) # add delensed
 
 #reduce lensing amplitude by xx per cent. Roughly mimicking S4-Wide delensing.
 parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=1) 
