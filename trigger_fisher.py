@@ -5,7 +5,7 @@ noise_level_arr = np.arange(1., 11., 1.)
 make_batch_scripts = True ##False
 
 for which_spectra in which_spectra_arr:
-    for noise_level in noise_level_arr[:1]:
+    for noise_level in noise_level_arr:
         opline = 'python3 fisher_diff_noise.py -which_spectra %s -rms_map_T %s' %(which_spectra, noise_level)
         if make_batch_scripts:
             template_fname='batch_jobs/template_slurm.sh'
