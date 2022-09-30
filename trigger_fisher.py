@@ -2,7 +2,7 @@ import numpy as np, os, sys
 
 which_spectra_arr = ['delensed_scalar', 'unlensed_total', 'total']
 noise_level_arr = np.arange(1., 11., 1.)
-make_batch_scripts = False
+make_batch_scripts = True ##False
 
 for which_spectra in which_spectra_arr:
     for noise_level in noise_level_arr:

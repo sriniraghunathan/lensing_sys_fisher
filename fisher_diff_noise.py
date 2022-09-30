@@ -154,13 +154,18 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-    noise_N0_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
-    file_exists = exists(noise_N0_fname)
+    opfname = 'results/F_mat_CDMp_test_%s_bin%s_dl%d_%s_n%.1f.json' %(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i])
+    if os.path.exists(opfname):
+        print('\n\tAlready complete. Check %s.\n' %(opfname))
+        continue
+
+    noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
+    file_exists = exists(noise_nzero_fname)
     print('Calculating N0 for noise%s'%(rms_map_T_list[i]))
     #if which_spectra == "delensed_scalar":
     if file_exists:
-        print('\tAlready have N0 for this noise level. File is %s!!! \n' %(noise_N0_fname))
-        n0s = np.loadtxt(noise_N0_fname)
+        print('\tAlready have N0 for this noise level. File is %s!!! \n' %(noise_nzero_fname))
+        n0s = np.loadtxt(noise_nzero_fname)
         mv = n0s[:,-1]
         nels = n0s[:,0]
         nl_mv = interpolate.interp1d(nels, mv)
@@ -171,7 +176,7 @@ for i in range(len(rms_map_T_list)):
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
         data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
         header = "els,n0s['EB'],n0s[q'EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv" 
-        np.savetxt(noise_N0_fname, data, header=header)
+        np.savetxt(noise_nzero_fname, data, header=header)
         n0_els, n0_mv = nels, mv
         nl_mv = interpolate.interp1d(nels, mv)
         nl_dict['PP'] = nl_mv(els)
@@ -194,13 +199,13 @@ for i in range(len(rms_map_T_list)):
     ############################################################################################################
     #get fiducual LCDM power spectra computed using CAMB
     logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
-    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, noise_N0_fname = noise_N0_fname)
+    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, noise_nzero_fname = noise_nzero_fname)
     ############################################################################################################
 
     ############################################################################################################
     #get derivatives
     logline = '\tget/read derivatives'; tools.write_log(logline)
-    cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
+    cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain, noise_nzero_fname = noise_nzero_fname)
     param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
     ############################################################################################################
 
@@ -337,7 +342,8 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_CDMp_test_inv_bin%s_BB_%s_cut30_%s_dl%s_n%s_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    opfname_constraints = 'results/constraints_CDMp_test_inv_bin%s_BB_%s_cut30_%s_dl%d_n%.1f_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i])
+    with open(opfname_constraints,'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
@@ -360,9 +366,10 @@ for i in range(len(rms_map_T_list)):
     out_dict['cov_mat'] = cov_mat.tolist()
     out_dict['fsky'] = fsky
 
-    with open("results/F_mat_CDMp_test_%s_bin%s_dl%s_%s_n%s.json"%(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i]), 'w') as fp:
+    with open(opfname, 'w') as fp:
             j = json.dump({k: v for k, v in out_dict.items()}, fp)
 
+print('\nAll done.\n')
 #sys.exit()
 #ax = plt.subplot(111, yscale = 'log')
 #dl_fac = els * (els+1)/2/np.pi

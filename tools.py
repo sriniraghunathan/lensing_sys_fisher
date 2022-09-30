@@ -111,7 +111,7 @@ def get_ini_cmb_power(param_dict, raw_cl = 1):
     #return els
 
 ########################################################################################################################
-def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True, debug = False, noise_N0_fname = None):
+def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True, debug = False, noise_nzero_fname = None):
 
     """
     set CAMB cosmology and get power spectra
@@ -223,10 +223,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
         ##output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
-        if noise_N0_fname:
-            noise_N0_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
-
-        n0s = np.loadtxt(noise_N0_fname)
+        if noise_nzero_fname is None:
+            noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rmsT, 1.0, binsize)
+        n0s = np.loadtxt(noise_nzero_fname)
         nels = n0s[:,0]
         mv = n0s[:,-1]
         '''
@@ -333,7 +332,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
 ########################################################################################################################
 
-def get_derivatives(param_dict, which_spectra, step_size_dict_for_derivatives = None, params_to_constrain = None):
+def get_derivatives(param_dict, which_spectra, step_size_dict_for_derivatives = None, params_to_constrain = None, noise_nzero_fname = None):
 
     """
     compute derivatives using finite difference method
@@ -348,9 +347,9 @@ def get_derivatives(param_dict, which_spectra, step_size_dict_for_derivatives = 
         tmpdic[keyname] = step_size_dict_for_derivatives[keyname]
 
         #compute power with fid+step
-        dummypars, els, cl_mod_dic_1 = get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = tmpdic, high_low = 0)
+        dummypars, els, cl_mod_dic_1 = get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = tmpdic, high_low = 0, noise_nzero_fname = noise_nzero_fname)
         #compute power with fid-step
-        dummypars, els, cl_mod_dic_2 = get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = tmpdic, high_low = 1)
+        dummypars, els, cl_mod_dic_2 = get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = tmpdic, high_low = 1, noise_nzero_fname = noise_nzero_fname)
 
         #get derivative using finite difference method
         cl_deriv[keyname] = {}

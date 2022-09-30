@@ -5,7 +5,7 @@
 #SBATCH --ntasks=6
 #SBATCH --cpus-per-task=1
 ##SBATCH --mem 10000
-#SBATCH --time=4:00:00
+#SBATCH --time=6:00:00
 #SBATCH --output=batch_jobs/job.o%j
 ##export SHELL=bash
 ##eval `/cvmfs/spt.opensciencegrid.org/py3-v2/setup.sh`
