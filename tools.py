@@ -111,7 +111,7 @@ def get_ini_cmb_power(param_dict, raw_cl = 1):
     #return els
 
 ########################################################################################################################
-def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True, debug = False):
+def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_derivatives = None, raw_cl = 1, high_low = 0, verbose = True, debug = False, noise_N0_fname = None):
 
     """
     set CAMB cosmology and get power spectra
@@ -217,13 +217,16 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         nlT = param_dict['nlT']
         nlP = param_dict['nlP']
         fwhm = param_dict['fwhm_arcmins']
+        binsize = param_dict['binsize']
         A_phi_sys_value=param_dict_to_use['A_phi_sys']
         alpha_phi_sys_value=param_dict_to_use['alpha_phi_sys']
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
-        output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
+        ##output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
+        if noise_N0_fname:
+            noise_N0_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
 
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rmsT, fwhm))
+        n0s = np.loadtxt(noise_N0_fname)
         nels = n0s[:,0]
         mv = n0s[:,-1]
         '''

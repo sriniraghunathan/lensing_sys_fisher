@@ -61,6 +61,10 @@ else:
     rms_map_T_list = [rms_map_T]
 fwhm_list = np.ones(10)
 
+
+Lsdl = 5
+binsize = 5   #rebin in calculating the cov^-1
+
 if not os.path.exists('derivs/'): os.system('mkdir -p derivs')
 ############################################################################################################
 #get experiment specs
@@ -150,37 +154,35 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-    file_exists = exists('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
-    print('Calculating noise%s'%(rms_map_T_list[i]))
+    noise_N0_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
+    file_exists = exists(noise_N0_fname)
+    print('Calculating N0 for noise%s'%(rms_map_T_list[i]))
     #if which_spectra == "delensed_scalar":
     if file_exists:
-        print("Already have N0 for this noise level!!! \n" )
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
+        print('\tAlready have N0 for this noise level. File is %s!!! \n' %(noise_N0_fname))
+        n0s = np.loadtxt(noise_N0_fname)
         mv = n0s[:,-1]
         nels = n0s[:,0]
         nl_mv = interpolate.interp1d(nels, mv)
         nl_dict['PP'] = nl_mv(els)
-        param_dict['rms_map_T'] = rms_map_T_list[i]
-        param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
-        param_dict['nlP'] = nl_PP_list[i]
-        param_dict['nlT'] = nl_TT_list[i]
-        param_dict['fwhm_arcmins'] = fwhm_list[i]
     else:
         nels = np.arange(els[0], els[-1]+10, 10)
         n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT_list[i], nl_PP_list[i], dimx = 1024, dimy = 1024, fftd = 1./60/180)
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
         data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
         header = "els,n0s['EB'],n0s[q'EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv" 
-        output_name = "params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat"%(rms_map_T_list[i], fwhm_list[i])
-        np.savetxt(output_name, data, header=header)
-        param_dict['rms_map_T'] = rms_map_T_list[i]
-        param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
-        param_dict['nlP'] = nl_PP_list[i]
-        param_dict['nlT'] = nl_TT_list[i]
-        param_dict['fwhm_arcmins'] = fwhm_list[i]
+        np.savetxt(noise_N0_fname, data, header=header)
         n0_els, n0_mv = nels, mv
         nl_mv = interpolate.interp1d(nels, mv)
         nl_dict['PP'] = nl_mv(els)
+
+
+    param_dict['rms_map_T'] = rms_map_T_list[i]
+    param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
+    param_dict['nlP'] = nl_PP_list[i]
+    param_dict['nlT'] = nl_TT_list[i]
+    param_dict['fwhm_arcmins'] = fwhm_list[i]
+    param_dict['binsize'] = binsize
 
     nl_dict['TT'] = nl_TT_list[i]
     nl_dict['EE'] = nl_PP_list[i]
@@ -192,7 +194,7 @@ for i in range(len(rms_map_T_list)):
     ############################################################################################################
     #get fiducual LCDM power spectra computed using CAMB
     logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
-    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
+    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, noise_N0_fname = noise_N0_fname)
     ############################################################################################################
 
     ############################################################################################################
@@ -222,8 +224,6 @@ for i in range(len(rms_map_T_list)):
 
     #'''
     cov_nongaussian = {}
-    Lsdl = 5
-    binsize = 5   #rebin in calculating the cov^-1
     camborDl  = "Dl" # "camb" or "Dl"
     #derivname = "selfdriv" # "camb" or "selfdriv"
     #camborself = "self"
