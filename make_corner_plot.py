@@ -6,7 +6,7 @@ from pylab import *
 
 #Fisher matrix file names
 reqd_fsky = None #0.03
-tau_prior = 0.007 #None #0.007 #None #0.007
+tau_prior = None #0.007 #None #0.007 #None #0.007
 #tau_prior = None #0.007
 #noise_level = 6
 noise_level = 1
