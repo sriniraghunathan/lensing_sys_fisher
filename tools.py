@@ -705,11 +705,15 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
         diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
 
-        with open("derivs/diffphi_dl%s_Dl.json"%(dl), 'w') as fp:
+        deriv_fname = 'derivs/diffphi_dl%s_Dl.json'%(Lsdl)
+        deriv_self_fname = 'derivs/diffself_dl%s_Dl.json' %(Lsdl)
+        deriv_ee_fname = 'derivs/diffee_dl%s_Dl.json' %(Lsdl)
+
+        with open(deriv_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffself_dl%s_Dl.json"%(dl), 'w') as fp:
+        with open(deriv_self_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffee_dl%s_Dl.json"%(dl), 'w') as fp:
+        with open(deriv_ee_fname, 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
@@ -758,12 +762,16 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['TT'] = diffs[:,2:,0] / (els * (els + 1 ))
         diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
         diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
+
+        deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(Lsdl, noiseTi)
+        deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(Lsdl, noiseTi)
+        deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(Lsdl, noiseTi)
     
-        with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open(deriv_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffself_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open(deriv_self_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffee_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open(deriv_ee_fname, 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
@@ -822,11 +830,15 @@ def get_deriv_camb(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['EE'] = dcambself[1,2:,Ls_to_get] / (els * (els + 1 )) * els[Ls_to_get, np.newaxis] * (els[Ls_to_get, np.newaxis] +1 )
         diff_self_dict['TE'] = dcambself[3,2:,Ls_to_get] / (els * (els + 1 )) * els[Ls_to_get, np.newaxis] * (els[Ls_to_get, np.newaxis] +1 )
 
-        with open("derivs/diffphi_dl%s_camb.json"%(dl), 'w') as fp:
+        deriv_fname = 'derivs/diffphi_dl%s_camb.json'%(Lsdl)
+        deriv_self_fname = 'derivs/diffself_dl%s_camb.json' %(Lsdl)
+        deriv_ee_fname = 'derivs/diffee_dl%s_camb.json' %(Lsdl)
+
+        with open(deriv_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffself_dl%s_camb.json"%(dl), 'w') as fp:
+        with open(deriv_self_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffee_dl%s_camb.json"%(dl), 'w') as fp:
+        with open(deriv_ee_fname, 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 

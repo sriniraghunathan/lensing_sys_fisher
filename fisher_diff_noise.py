@@ -154,6 +154,11 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
+    camborDl  = "Dl" # "camb" or "Dl"
+    #derivname = "selfdriv" # "camb" or "selfdriv"
+    #camborself = "self"
+    derivname = "selfdriv" # "camb" or "selfdriv"
+    camborself = "self"
     opfname = 'results/F_mat_CDMp_test_%s_bin%s_dl%d_%s_n%.1f.json' %(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i])
     if os.path.exists(opfname):
         print('\n\tAlready complete. Check %s.\n' %(opfname))
@@ -229,24 +234,24 @@ for i in range(len(rms_map_T_list)):
 
     #'''
     cov_nongaussian = {}
-    camborDl  = "Dl" # "camb" or "Dl"
-    #derivname = "selfdriv" # "camb" or "selfdriv"
-    #camborself = "self"
-    derivname = "selfdriv" # "camb" or "selfdriv"
-    camborself = "self"
-    print("dl is ", Lsdl)
-    print("binsize is ", binsize)
-    print("camborself is ", camborself)
+    print('dl is ', Lsdl)
+    print('binsize is ', binsize)
+    print('camborself is ', camborself)
     Ls_to_get = np.arange(2, 5000, Lsdl)
-    file_exists = exists("derivs/diffphi_dl%s_%s.json"%(Lsdl, camborDl))
-    #file_exists = False
-    if which_spectra == "delensed_scalar":        
-        file_exists = exists("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i]))
-        #file_exists = False
+    deriv_fname = 'derivs/diffphi_dl%s_%s.json'%(Lsdl, camborDl)
+    deriv_self_fname = 'derivs/diffself_dl%s_%s.json' %(Lsdl, camborDl)
+    deriv_ee_fname = 'derivs/diffee_dl%s_%s.json' %(Lsdl, camborDl)
+    file_exists = exists(deriv_fname)
+    if which_spectra == 'delensed_scalar':
+        deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        file_exists = exists(deriv_fname)
 
     diff_EE_dict = {}; diff_self_dict = {}; diff_phi_dict = {}
 
     if file_exists:
+        '''
         if which_spectra == "delensed_scalar":        
             print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
             with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i])) as infile:
@@ -263,6 +268,15 @@ for i in range(len(rms_map_T_list)):
                 diff_self_data = json.load(infile)
             with open("derivs/diffee_dl%s_%s.json"%(Lsdl, camborDl)) as infile:
                 diff_EE_data = json.load(infile)
+        '''
+
+        print('Already have derivs for this dl!!! \n' , 'dl = %s'%(Lsdl))
+        with open(deriv_fname) as infile:
+            diff_phi_data = json.load(infile)
+        with open(deriv_self_fname) as infile:
+            diff_self_data = json.load(infile)
+        with open(deriv_ee_fname) as infile:
+            diff_EE_data = json.load(infile)
 
         diff_EE_dict['BB'] = np.asarray(diff_EE_data['BB'])
         diff_self_dict['TT'] = np.asarray(diff_self_data['TT'])
