@@ -27,7 +27,7 @@ parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=f
 parser.add_argument('-fsky', dest='fsky', action='store', help='fsky', type = float, default = 0.57)
 parser.add_argument('-include_lensing', dest='include_lensing', action='store', help='include_lensing', type = int, default = 0)
 #xx percent of lensing N0 will be considered as lensing systematic
-parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
+###parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
 
 #ILC residual file
 parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 0)
@@ -97,8 +97,8 @@ prior_dic = {}
 #prior_dic = {'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 #prior_dic = {'tau':0.002, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 # prior 1: A:1e-17, alpha:1, prior2: A:5e-18, alpha:1, prior3: A:5e-18, alpha:1,
-if lensing_sys_n0_frac>0.:
-    pass
+###if lensing_sys_n0_frac>0.:
+###    pass
     #prior_dic = {'Asys_lens':0.1, 'alphasys_lens': 0.1} #play with the choice of prior here.
 desired_param_arr = None ##['ns', 'neff'] #desired parameter to be printed. Prints everything is set to None
 ############################################################################################################

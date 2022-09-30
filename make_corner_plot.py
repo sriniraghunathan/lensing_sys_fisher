@@ -6,10 +6,10 @@ from pylab import *
 
 #Fisher matrix file names
 reqd_fsky = None #0.03
-tau_prior = None #0.007 #None #0.007
+tau_prior = 0.007 #None #0.007 #None #0.007
 #tau_prior = None #0.007
 #noise_level = 6
-noise_level = 6
+noise_level = 1
 '''
 flist_dict = {'results/F_mat_CDMp_total_bin5_dl5_self_n%s.json' %(noise_level): 'lensed', 
             'results/F_mat_CDMp_delensed_scalar_bin5_dl5_self_n%s.json' %(noise_level): 'delensed', 
@@ -19,8 +19,15 @@ flist_dict = {'results/F_mat_CDMp_total_bin5_dl5_self_n%s.json' %(noise_level): 
 flist_dict = {'results/F_mat_CDMp_test_total_bin5_dl5_self_n%s.json' %(noise_level): 'lensed', 
             'results/F_mat_CDMp_test_delensed_scalar_bin5_dl5_self_n%s.json' %(noise_level): 'delensed', 
             'results/F_mat_CDMp_test_unlensed_total_bin5_dl5_self_n%s.json' %(noise_level): 'unlensed'}
+#flist_dict = {'results/F_mat_CDMp_prior_lensys_delensed_scalar_bin5_dl5_self_n%s.json' %(noise_level): 'delensed'}
 '''
-flist_dict = {'results/F_mat_CDMp_prior_lensys_delensed_scalar_bin5_dl5_self_n%s.json' %(noise_level): 'delensed'}
+flist_dict = {
+'results/F_mat_CDMp_test_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'lensed',
+'results/F_mat_CDMp_test_delensed_scalar_bin5_dl5_self_n%.1f.json' %(noise_level): 'delensed',
+'results/F_mat_CDMp_test_unlensed_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'unlensed',
+}
+
+
 flist_dict_values = list(flist_dict.values())
 
 
@@ -75,7 +82,7 @@ figlen = len(desired_params_to_plot) + 4
 clf()
 figure(figsize=(figlen, figlen))
 fix_axis_range_to_xxsigma = 4. ##None
-tools_for_plotting.make_triangle_plot(which_spectra_arr, F_dict, param_dict, param_names, desired_params_to_plot, color_dict, fsval = fsval, lwval = lwval, fix_axis_range_to_xxsigma = fix_axis_range_to_xxsigma, upper_or_lower_triangle = 'upper')
+tools_for_plotting.make_triangle_plot(which_spectra_arr, F_dict, param_dict, param_names, desired_params_to_plot, color_dict, fsval = fsval, lwval = lwval, fix_axis_range_to_xxsigma = fix_axis_range_to_xxsigma)#, upper_or_lower_triangle = 'upper')
 
 if (1): #add legend
     tr = tc = len(desired_params_to_plot)
@@ -99,8 +106,10 @@ if not os.path.exists(plfolder): os.system('mkdir -p %s' %(plfolder))
 plname = '%s/constraints_%s_noiselevel%s' %(plfolder, param_names_str, noise_level)
 if tau_prior is not None:
     plname = '%s_tauprior%s' %(plname, tau_prior)
-plname = '%s_fsky%s.png' %(plname, reqd_fsky)
+if reqd_fsky is not None:
+    plname = '%s_fsky%s' %(plname, reqd_fsky)
+plname = '%s.png' %(plname)
 print(plname)
-#savefig(plname, dpi = 300.)
-show(); 
+savefig(plname, dpi = 300.)
+#show(); 
 sys.exit()

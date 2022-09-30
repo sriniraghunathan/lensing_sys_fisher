@@ -1648,9 +1648,11 @@ def get_nl(els, rms_map_T, rms_map_P = None, fwhm = None, Bl = None, elknee_t = 
 
 
 
-def get_nl_sys(els, A_phi_sys, alpha_phi_sys, els_pivot = 3000):
+def get_nl_sys(els, A_phi_sys, alpha_phi_sys, els_pivot = 3000, null_lensing_systematic = True):
     factor_phi_deflection = (els * (els+1) )**2./2./np.pi
     nl_mv_sys = A_phi_sys *((els/ els_pivot)**alpha_phi_sys) * factor_phi_deflection**0
+    if null_lensing_systematic:
+        nl_mv_sys = nl_mv_sys * 0.
     return nl_mv_sys
 
 ########################################################################################################################
