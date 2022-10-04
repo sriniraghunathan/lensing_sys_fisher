@@ -221,9 +221,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         alpha_phi_sys_value=param_dict_to_use['alpha_phi_sys']
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
-        output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
-
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s.dat'%(rmsT, fwhm))
+        #output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
+        
+        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
         nels = n0s[:,0]
         mv = n0s[:,-1]
         '''
@@ -245,7 +245,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         print('n0: ', n0fun(els))
         print('nlsys: ', get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
         recov_cl_phiphi = cl_phiphi + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
-        clpp = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+        clpp = cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
 
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
@@ -421,7 +421,7 @@ def get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, n
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
         winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
         recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-        clpp = recov_cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi        
+        clpp = cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi        
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
         thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
         diff = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
@@ -429,7 +429,7 @@ def get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, n
             clpp[Li-2] = cl_phiphi[Li-2]*(1+percent)            
             winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
             recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-            clpp = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+            clpp = cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
             diff[i] = (thyresi - thyres0)/(clpp[Li]*percent)
@@ -719,7 +719,7 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
         winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
         recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-        clpp = recov_cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
+        clpp = cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
         thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
         diffp = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
@@ -730,7 +730,7 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             clphii[Li-2] = cl_phiphi[Li-2]*(1+percent)
             winf = clphii / (nl_dict['PP'] + clphii + nl_dict['SYS'])
             recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-            clppi = recov_cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+            clppi = clphii * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             clppi = np.insert(clppi, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clppi, lmax = els[-1])
             clsi = cls.copy()
@@ -757,11 +757,11 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
         diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
     
-        with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open("derivs/diffphisys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffself_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open("derivs/diffselfsys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffee_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open("derivs/diffeesys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
