@@ -773,19 +773,12 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
         deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
     
-<<<<<<< HEAD
+
         with open("derivs/diffphisys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
         with open("derivs/diffselfsys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
         with open("derivs/diffeesys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
-=======
-        with open(deriv_fname, 'w') as fp:
-            j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open(deriv_self_fname, 'w') as fp:
-            j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open(deriv_ee_fname, 'w') as fp:
->>>>>>> 866816b6aff73abce9b7b487c6126447f470bcdf
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
