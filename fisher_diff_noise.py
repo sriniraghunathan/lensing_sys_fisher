@@ -27,7 +27,7 @@ parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=f
 parser.add_argument('-fsky', dest='fsky', action='store', help='fsky', type = float, default = 0.57)
 parser.add_argument('-include_lensing', dest='include_lensing', action='store', help='include_lensing', type = int, default = 0)
 #xx percent of lensing N0 will be considered as lensing systematic
-parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
+###parser.add_argument('-lensing_sys_n0_frac', dest='lensing_sys_n0_frac', action='store', help='lensing_sys_n0_frac', type = float, default = 0.2)
 
 #ILC residual file
 parser.add_argument('-use_ilc_nl', dest='use_ilc_nl', action='store', help='use_ilc_nl', type=int, default = 0)
@@ -61,6 +61,11 @@ else:
     rms_map_T_list = [rms_map_T]
 fwhm_list = np.ones(10)
 
+
+Lsdl = 5
+binsize = 5   #rebin in calculating the cov^-1
+
+if not os.path.exists('derivs/'): os.system('mkdir -p derivs')
 ############################################################################################################
 #get experiment specs
 logline = '\tset lmax / power spectra to be used'; tools.write_log(logline)
@@ -79,7 +84,7 @@ min_l_pol, max_l_pol = 30, 5000
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
 ###params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
 #params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','A_phi_sys', 'alpha_phi_sys']
-params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar']
+params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar', 'A_phi_sys', 'alpha_phi_sys']
 #params_to_constrain = ['r','ns', 'ombh2', 'omch2', 'thetastar']
 #params_to_constrain = ['r', 'thetastar']
 #params_to_constrain = ['neff','ns', 'ombh2', 'omch2', 'thetastar']
@@ -92,8 +97,8 @@ prior_dic = {}
 #prior_dic = {'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 #prior_dic = {'tau':0.002, 'A_phi_sys':5e-19, 'alpha_phi_sys':0.2} #Planck-like tau prior
 # prior 1: A:1e-17, alpha:1, prior2: A:5e-18, alpha:1, prior3: A:5e-18, alpha:1,
-if lensing_sys_n0_frac>0.:
-    pass
+###if lensing_sys_n0_frac>0.:
+###    pass
     #prior_dic = {'Asys_lens':0.1, 'alphasys_lens': 0.1} #play with the choice of prior here.
 desired_param_arr = None ##['ns', 'neff'] #desired parameter to be printed. Prints everything is set to None
 ############################################################################################################
@@ -149,37 +154,45 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-    file_exists = exists('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
-    print('Calculating noise%s'%(rms_map_T_list[i]))
+    camborDl  = "Dl" # "camb" or "Dl"
+    #derivname = "selfdriv" # "camb" or "selfdriv"
+    #camborself = "self"
+    derivname = "selfdriv" # "camb" or "selfdriv"
+    camborself = "self"
+    opfname = 'results/F_mat_CDMp_test_%s_bin%s_dl%d_%s_n%.1f.json' %(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i])
+    if os.path.exists(opfname):
+        print('\n\tAlready complete. Check %s.\n' %(opfname))
+        continue
+
+    noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rms_map_T_list[i], 1.0, binsize)
+    file_exists = exists(noise_nzero_fname)
+    print('Calculating N0 for noise%s'%(rms_map_T_list[i]))
     #if which_spectra == "delensed_scalar":
     if file_exists:
-        print("Already have N0 for this noise level!!! \n" )
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat'%(rms_map_T_list[i], 1.0))
+        print('\tAlready have N0 for this noise level. File is %s!!! \n' %(noise_nzero_fname))
+        n0s = np.loadtxt(noise_nzero_fname)
         mv = n0s[:,-1]
         nels = n0s[:,0]
         nl_mv = interpolate.interp1d(nels, mv)
         nl_dict['PP'] = nl_mv(els)
-        param_dict['rms_map_T'] = rms_map_T_list[i]
-        param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
-        param_dict['nlP'] = nl_PP_list[i]
-        param_dict['nlT'] = nl_TT_list[i]
-        param_dict['fwhm_arcmins'] = fwhm_list[i]
     else:
         nels = np.arange(els[0], els[-1]+10, 10)
         n0s = tools.calculate_n0(nels, els, unlensedCL, totCL, nl_TT_list[i], nl_PP_list[i], dimx = 1024, dimy = 1024, fftd = 1./60/180)
         mv = 1./(1./n0s['EB']+1./n0s['EE']+1./n0s['TT']+1./n0s['TB']+1./n0s['TE'])
         data = np.column_stack((nels,n0s['EB'],n0s['EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv))
         header = "els,n0s['EB'],n0s[q'EE'],n0s['TT'],n0s['TB'],n0s['TE'], mv" 
-        output_name = "params/generate_n0s_rmsT%s_fwhmm%s_dl10.dat"%(rms_map_T_list[i], fwhm_list[i])
-        np.savetxt(output_name, data, header=header)
-        param_dict['rms_map_T'] = rms_map_T_list[i]
-        param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
-        param_dict['nlP'] = nl_PP_list[i]
-        param_dict['nlT'] = nl_TT_list[i]
-        param_dict['fwhm_arcmins'] = fwhm_list[i]
+        np.savetxt(noise_nzero_fname, data, header=header)
         n0_els, n0_mv = nels, mv
         nl_mv = interpolate.interp1d(nels, mv)
         nl_dict['PP'] = nl_mv(els)
+
+
+    param_dict['rms_map_T'] = rms_map_T_list[i]
+    param_dict['rms_map_P'] = rms_map_T_list[i] * 2**0.5
+    param_dict['nlP'] = nl_PP_list[i]
+    param_dict['nlT'] = nl_TT_list[i]
+    param_dict['fwhm_arcmins'] = fwhm_list[i]
+    param_dict['binsize'] = binsize
 
     nl_dict['TT'] = nl_TT_list[i]
     nl_dict['EE'] = nl_PP_list[i]
@@ -191,13 +204,13 @@ for i in range(len(rms_map_T_list)):
     ############################################################################################################
     #get fiducual LCDM power spectra computed using CAMB
     logline = '\tget fiducual LCDM %s power spectra computed using CAMB' %(which_spectra); tools.write_log(logline)
-    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra)
+    pars, els, cl_dict = tools.get_cmb_spectra_using_camb(param_dict, which_spectra, noise_nzero_fname = noise_nzero_fname)
     ############################################################################################################
 
     ############################################################################################################
     #get derivatives
     logline = '\tget/read derivatives'; tools.write_log(logline)
-    cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain)
+    cl_deriv_dict = tools.get_derivatives(param_dict, which_spectra, params_to_constrain = params_to_constrain, noise_nzero_fname = noise_nzero_fname)
     param_names = np.asarray( sorted( cl_deriv_dict.keys() ) )
     ############################################################################################################
 
@@ -221,26 +234,24 @@ for i in range(len(rms_map_T_list)):
 
     #'''
     cov_nongaussian = {}
-    Lsdl = 5
-    binsize = 5   #rebin in calculating the cov^-1
-    camborDl  = "Dl" # "camb" or "Dl"
-    #derivname = "selfdriv" # "camb" or "selfdriv"
-    #camborself = "self"
-    derivname = "selfdriv" # "camb" or "selfdriv"
-    camborself = "self"
-    print("dl is ", Lsdl)
-    print("binsize is ", binsize)
-    print("camborself is ", camborself)
+    print('dl is ', Lsdl)
+    print('binsize is ', binsize)
+    print('camborself is ', camborself)
     Ls_to_get = np.arange(2, 5000, Lsdl)
-    file_exists = exists("derivs/diffphi_dl%s_%s.json"%(Lsdl, camborDl))
-    #file_exists = False
-    if which_spectra == "delensed_scalar":        
-        file_exists = exists("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i]))
-        #file_exists = False
+    deriv_fname = 'derivs/diffphi_dl%s_%s.json'%(Lsdl, camborDl)
+    deriv_self_fname = 'derivs/diffself_dl%s_%s.json' %(Lsdl, camborDl)
+    deriv_ee_fname = 'derivs/diffee_dl%s_%s.json' %(Lsdl, camborDl)
+    file_exists = exists(deriv_fname)
+    if which_spectra == 'delensed_scalar':
+        deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(Lsdl, rms_map_T_list[i])
+        file_exists = exists(deriv_fname)
 
     diff_EE_dict = {}; diff_self_dict = {}; diff_phi_dict = {}
 
     if file_exists:
+        '''
         if which_spectra == "delensed_scalar":        
             print("Already have derivs for this dl!!! \n" , "dl = %s"%(Lsdl))
             with open("derivs/diffphi_dl%s_Dl_delensed_n%s.json"%(Lsdl, rms_map_T_list[i])) as infile:
@@ -257,6 +268,15 @@ for i in range(len(rms_map_T_list)):
                 diff_self_data = json.load(infile)
             with open("derivs/diffee_dl%s_%s.json"%(Lsdl, camborDl)) as infile:
                 diff_EE_data = json.load(infile)
+        '''
+
+        print('Already have derivs for this dl!!! \n' , 'dl = %s'%(Lsdl))
+        with open(deriv_fname) as infile:
+            diff_phi_data = json.load(infile)
+        with open(deriv_self_fname) as infile:
+            diff_self_data = json.load(infile)
+        with open(deriv_ee_fname) as infile:
+            diff_EE_data = json.load(infile)
 
         diff_EE_dict['BB'] = np.asarray(diff_EE_data['BB'])
         diff_self_dict['TT'] = np.asarray(diff_self_data['TT'])
@@ -336,7 +356,8 @@ for i in range(len(rms_map_T_list)):
     #extract parameter constraints
     if desired_param_arr is None:
         desired_param_arr = param_names
-    with open('results_CDMp_test_inv_bin%s_BB_%s_cut30_%s_dl%s_n%s_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i]),'w') as outfile:
+    opfname_constraints = 'results/constraints_CDMp_test_inv_bin%s_BB_%s_cut30_%s_dl%d_n%.1f_fwhm%s.txt'%(binsize, derivname,  which_spectra, Lsdl, rms_map_T_list[i], fwhm_list[i])
+    with open(opfname_constraints,'w') as outfile:
         outfile.write('sigma,value\n')
         for desired_param in desired_param_arr:
             logline = '\textract sigma(%s)' %(desired_param); tools.write_log(logline)
@@ -359,9 +380,10 @@ for i in range(len(rms_map_T_list)):
     out_dict['cov_mat'] = cov_mat.tolist()
     out_dict['fsky'] = fsky
 
-    with open("results/F_mat_CDMp_test_%s_bin%s_dl%s_%s_n%s.json"%(which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i]), 'w') as fp:
+    with open(opfname, 'w') as fp:
             j = json.dump({k: v for k, v in out_dict.items()}, fp)
 
+print('\nAll done.\n')
 #sys.exit()
 #ax = plt.subplot(111, yscale = 'log')
 #dl_fac = els * (els+1)/2/np.pi
