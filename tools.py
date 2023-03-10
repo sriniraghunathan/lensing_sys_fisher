@@ -220,18 +220,18 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         binsize = param_dict['binsize']
         A_phi_sys_value=param_dict_to_use['A_phi_sys']
         alpha_phi_sys_value=param_dict_to_use['alpha_phi_sys']
+        beta_phi_sys_value = param_dict_to_use['beta_phi_sys']
+        gamma_phi_sys_value = param_dict['gamma_phi_sys']
+        gamma_N0_sys_value = param_dict['gamma_N0_sys']
+        gamma_phi_sys_gauss = param_dict_to_use['gamma_phi_sys']
+        gamma_N0_sys_gauss = param_dict_to_use['gamma_N0_sys']
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
-<<<<<<< HEAD
+
         #output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
         
-        n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
-=======
-        ##output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
-        if noise_nzero_fname is None:
-            noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rmsT, 1.0, binsize)
-        n0s = np.loadtxt(noise_nzero_fname)
->>>>>>> 866816b6aff73abce9b7b487c6126447f470bcdf
+        n0s = np.loadtxt('params/generate_n0s_iter_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
+
         nels = n0s[:,0]
         mv = n0s[:,-1]
         '''
@@ -247,13 +247,29 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         #rhosqfun = interpolate.interp1d(els, rhosq)
         '''
         n0fun = interpolate.interp1d(nels, mv)
-
-        winf = cphifun(els) / (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
+        n0els = n0fun(els)
+        n_sys_els = get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
+        crossphi = (cl_phiphi * n_sys_els)**0.5 * beta_phi_sys_value
+        cphi_tot = 2*crossphi + n0els + n_sys_els + cl_phiphi
+        cphi_tot_gauss = n0els*gamma_N0_sys_gauss**2 + cl_phiphi*gamma_phi_sys_gauss**2
+        cphi_tot_value = n0els*gamma_N0_sys_value**2 + cl_phiphi*gamma_phi_sys_value**2
+        #cphi_tot = n0els + n_sys_els + cl_phiphi*gamma_phi_sys_value**2
+        #winf = cphifun(els) / (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
+        winf = gamma_phi_sys_gauss*cphifun(els) / cphi_tot_gauss#March 8th
+        #winf = gamma_phi_sys_gauss*cphifun(els) / cphi_tot_value
+        #winf = gamma_phi_sys_value*cphifun(els) / cphi_tot_gauss
+        #winf = (cphifun(els) + crossphi)/ (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value) + 2*crossphi)
         print('cphi: ',cphifun(els))
         print('n0: ', n0fun(els))
         print('nlsys: ', get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
-        recov_cl_phiphi = cl_phiphi + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
-        clpp = cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+        #recov_cl_phiphi = cl_phiphi + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
+        #clpp = cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi * (n0els + n_sys_els) - crossphi**2)/cphi_tot * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi * (n0els + n_sys_els))/cphi_tot * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi * (n0els*gamma_N0_sys_value**2))/cphi_tot * (els*(els+1))**2/2/np.pi
+        clpp = (cl_phiphi + cphi_tot_value*winf**2 -2*gamma_phi_sys_value * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi + cphi_tot_gauss*winf**2 -2*gamma_phi_sys_gauss * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi * n0els)/cphi_tot * (els*(els+1))**2/2/np.pi
 
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
@@ -290,8 +306,8 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
     ########################
     #do we need cl or dl
-    if not raw_cl: #20200529: also valid for lensing (see https://camb.readthedocs.io/en/latest/_modules/camb/results.html#CAMBdata.get_lens_potential_cls)
-        powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
+    #if not raw_cl: #20200529: also valid for lensing (see https://camb.readthedocs.io/en/latest/_modules/camb/results.html#CAMBdata.get_lens_potential_cls)
+     #   powers[which_spectra] = powers[which_spectra] * 2 * np.pi / (els[:,None] * (els[:,None] + 1 ))
     ########################
 
     ########################    
@@ -384,7 +400,11 @@ def get_step_sizes_for_derivative_calc(params_to_constrain):
     'mnu':0.0006,
     'A_phi_sys': 1e-20,
     'alpha_phi_sys': -2e-2,
-    'r': 0.0001,
+    'beta_phi_sys' : 1e-3,
+    'gamma_phi_sys' : 1e-3,
+    'gamma_N0_sys' : 1e-3,
+    ###'r': 0.0001,
+    'r':1e-8,
     ###'YHe': 0.005, 
     #'Alens': 1e-2, 
     #'Aphiphi': 1e-2, 
@@ -436,6 +456,8 @@ def get_derivative_to_phi_with_camb(els, which_spectra, unlensedCL, cl_phiphi, n
         for i, Li in enumerate(Ls_to_get):
             clpp[Li-2] = cl_phiphi[Li-2]*(1+percent)            
             winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
+            winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi*gamma_phi_sys)
+            #winf = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'] + 2*nl_dict['CROSS'])
             recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
             clpp = cl_phiphi * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
@@ -661,7 +683,7 @@ def get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diffphi, delta_cl_dict, el
 
 ########################################################################################################################
 
-def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05, noiseTi  = 1):
+def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05, noiseTi  = 1, iteration = False, param_dict = None):
     """
     get non_gaussian part for Delta_cl (sample variance)
     """
@@ -711,9 +733,9 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
         diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
 
-        deriv_fname = 'derivs/diffphi_dl%s_Dl.json'%(dl)
-        deriv_self_fname = 'derivs/diffself_dl%s_Dl.json' %(dl)
-        deriv_ee_fname = 'derivs/diffee_dl%s_Dl.json' %(dl)
+        deriv_fname = 'derivs/diffphi_dl%s_Dl_rem6.json'%(dl)
+        deriv_self_fname = 'derivs/diffself_dl%s_Dl_rem6.json' %(dl)
+        deriv_ee_fname = 'derivs/diffee_dl%s_Dl_rem6.json' %(dl)
 
         with open(deriv_fname, 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
@@ -727,11 +749,18 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         np.savetxt(output_name0, dataLs, header=header0)
 
     elif which_spectra == "delensed_scalar":
+        gamma_phi_sys_value = param_dict['gamma_phi_sys']
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
         winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
-        recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-        clpp = cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
+        cphi_tot = nl_dict['PP'] + cl_phiphi + nl_dict['SYS'] + 2*nl_dict['CROSS']
+        cphi_tot = nl_dict['PP'] + cl_phiphi*gamma_phi_sys_value**2 + nl_dict['SYS']
+        #recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
+        #clpp = (cl_phiphi * (n0els + n_sys_els) - crossphi**2)/cphi_tot * (els*(els+1))**2/2/np.pi
+        clpp = (cl_phiphi * (nl_dict['PP'] + nl_dict['SYS']))/cphi_tot * (els*(els+1))**2/2/np.pi
+        #clpp = (cl_phiphi * nl_dict['PP'])/cphi_tot * (els*(els+1))**2/2/np.pi #gamma only
+
+        #clpp = cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
         thyres0 = camb.correlations.lensed_cls(cls, clpp, lmax = els[-1])
         diffp = np.zeros((len(Ls_to_get), thyres0.shape[0], thyres0.shape[1]))
@@ -741,8 +770,13 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             clphii = cl_phiphi.copy()
             clphii[Li-2] = cl_phiphi[Li-2]*(1+percent)
             winf = clphii / (nl_dict['PP'] + clphii + nl_dict['SYS'])
-            recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
-            clppi = clphii * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+            #clppi = clphii * (1.-winf**1) * (els*(els+1))**2/2/np.pi
+            crossphii = nl_dict['CROSS']*(1+percent)**0.5
+            cphi_toti = nl_dict['PP'] + clphii + nl_dict['SYS'] + 2*crossphii
+            cphi_toti = nl_dict['PP'] + clphii*gamma_phi_sys_value**2 + nl_dict['SYS'] # without sys if only gamma
+            #clppi = (clphii * (n0els + n_sys_els) - crossphii**2)/cphi_toti * (els*(els+1))**2/2/np.pi
+            clppi = (clphii * (nl_dict['PP'] + nl_dict['SYS']))/cphi_toti * (els*(els+1))**2/2/np.pi
+            #clppi = (clphii * nl_dict['PP'])/cphi_toti * (els*(els+1))**2/2/np.pi #if only gamma
             clppi = np.insert(clppi, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clppi, lmax = els[-1])
             clsi = cls.copy()
@@ -769,16 +803,18 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         diff_self_dict['EE'] = diffs[:,2:,1] / (els * (els + 1 ))
         diff_self_dict['TE'] = diffs[:,2:,3] / (els * (els + 1 ))
 
-        deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
-        deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
-        deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
-    
-
-        with open("derivs/diffphisys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        #deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
+        #deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
+        #deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
+        itername = ''
+        if iteration:
+            itername = 'iter'
+            
+        with open("derivs/diffphi_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffselfsys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open("derivs/diffself_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffeesys_dl%s_Dl_delensed_n%s.json"%(dl, noiseTi), 'w') as fp:
+        with open("derivs/diffee_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
@@ -1391,7 +1427,7 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
 
     if include_B:
         for p in params:
-            pdict = cl_deriv_dict[p]
+            pdict = cl_deriv_dict[p].copy()
             pdict['BB'] = pdict['BB'] * TT_filter
             cut_del = pdict['BB'][:newend]
             new_del = cut_del.reshape((newshape, -1)).mean(axis = 1)
@@ -1890,7 +1926,7 @@ def get_delensed_from_lensed_cvltion(els, cl_uns, cl_tots , cphi, rho2, nl_TT, n
 #def get_delensed_from_lensed(els, cl_uns, cl_tots , cphi, n0, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 10):
 
 #def calculate_n0(cl_uns, cl_tots, els):
-def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180):
+def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180, iteration = False):
     xs = np.fft.fftfreq(dimx, fftd)
     ys = np.fft.fftfreq(dimy, fftd)
     #xs = np.arange(-6000, 6000, 10)
@@ -1939,6 +1975,12 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
     C_EE = interpolate.interp1d(els, cle_tot + nl_PP) #observe
     C_TT = interpolate.interp1d(els, clt_tot + nl_TT) #observe
     C_TE = interpolate.interp1d(els, clte_tot) #observe
+    if iteration:
+        C_BB = interpolate.interp1d(els, clb_u + nl_PP) #observe
+        C_EE = interpolate.interp1d(els, cle_u + nl_PP) #observe
+        C_TT = interpolate.interp1d(els, clt_u + nl_TT) #observe
+        C_TE = interpolate.interp1d(els, clte_u) #observe
+        
     for i, Li in enumerate(nels):
         if Li%1000 == 2:
             print('Li ',Li)
