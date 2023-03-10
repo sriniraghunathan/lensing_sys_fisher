@@ -227,11 +227,18 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         gamma_N0_sys_gauss = param_dict_to_use['gamma_N0_sys']
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
+        #<<<<<<< HEAD
 
         #output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
         
         n0s = np.loadtxt('params/generate_n0s_iter_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
 
+        #=======
+        ##output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
+        if noise_nzero_fname is None:
+            noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rmsT, 1.0, binsize)
+        n0s = np.loadtxt(noise_nzero_fname)
+        #>>>>>>> 1f106dc8e1c047de727916aae607be100d8f4f7b
         nels = n0s[:,0]
         mv = n0s[:,-1]
         '''
