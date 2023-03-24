@@ -223,24 +223,26 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         beta_phi_sys_value = param_dict_to_use['beta_phi_sys']
         gamma_phi_sys_value = param_dict['gamma_phi_sys']
         gamma_N0_sys_value = param_dict['gamma_N0_sys']
-        gamma_phi_sys_gauss = param_dict_to_use['gamma_phi_sys']
-        gamma_N0_sys_gauss = param_dict_to_use['gamma_N0_sys']
+        gamma_phi_sys_guess = param_dict_to_use['gamma_phi_sys']
+        gamma_N0_sys_guess = param_dict_to_use['gamma_N0_sys']
         #A_phi_sys = param_dict['A_phi_sys']
         #alpha_phi_sys = param_dict['alpha_phi_sys']
         #<<<<<<< HEAD
 
-        #output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
-        
-        n0s = np.loadtxt('params/generate_n0s_iter_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
+        #n0s = np.loadtxt('params/generate_n0s_iter1st_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
+        #n0s = np.loadtxt('params/generate_n0s_rmsT%s_fwhmm%s_dl5.dat'%(rmsT, fwhm))
 
         #=======
-        ##output_name = "params/generate_n0s_rmsT%s_fwhmm%s.dat"%(rmsT, fwhm)
+        #''
         if noise_nzero_fname is None:
-            noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rmsT, 1.0, binsize)
+            noise_nzero_fname = 'params/generate_n0s_spt_rmsT%s_fwhmm%s_dl5.dat'%(rms_map_T_list[i], 1.0)
+            #noise_nzero_fname = 'params/generate_n0s_rmsT%.1f_fwhmm%.1f_dl%d.dat'%(rmsT, 1.0, binsize)
         n0s = np.loadtxt(noise_nzero_fname)
+        #''
         #>>>>>>> 1f106dc8e1c047de727916aae607be100d8f4f7b
         nels = n0s[:,0]
         mv = n0s[:,-1]
+        #mv = n0s[:,1]
         '''
         bl, nlT, nlP = get_nl(els, 2., None, 1.)
         nels = np.arange(els[0], els[-1]+100, 100)
@@ -258,13 +260,15 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         n_sys_els = get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value)
         crossphi = (cl_phiphi * n_sys_els)**0.5 * beta_phi_sys_value
         cphi_tot = 2*crossphi + n0els + n_sys_els + cl_phiphi
-        cphi_tot_gauss = n0els*gamma_N0_sys_gauss**2 + cl_phiphi*gamma_phi_sys_gauss**2
+        cphi_tot_guess = n0els*gamma_N0_sys_guess**2 + cl_phiphi*gamma_phi_sys_guess**2
         cphi_tot_value = n0els*gamma_N0_sys_value**2 + cl_phiphi*gamma_phi_sys_value**2
         #cphi_tot = n0els + n_sys_els + cl_phiphi*gamma_phi_sys_value**2
         #winf = cphifun(els) / (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value))
-        winf = gamma_phi_sys_gauss*cphifun(els) / cphi_tot_gauss#March 8th
-        #winf = gamma_phi_sys_gauss*cphifun(els) / cphi_tot_value
-        #winf = gamma_phi_sys_value*cphifun(els) / cphi_tot_gauss
+        winf = gamma_phi_sys_guess*cphifun(els) / cphi_tot_guess#March 8th
+        winf = gamma_phi_sys_value*cphifun(els) / cphi_tot_guess #change phi and see the deriv, keep total_phi change with the real value, but the gamma1 in w not change to present our limmited knowledeg of phi
+
+        #winf = gamma_phi_sys_guess*cphifun(els) / cphi_tot_value
+        #winf = gamma_phi_sys_value*cphifun(els) / cphi_tot_guess
         #winf = (cphifun(els) + crossphi)/ (n0fun(els) + cphifun(els) + get_nl_sys(els, A_phi_sys_value, alpha_phi_sys_value) + 2*crossphi)
         print('cphi: ',cphifun(els))
         print('n0: ', n0fun(els))
@@ -275,6 +279,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         #clpp = (cl_phiphi * (n0els + n_sys_els))/cphi_tot * (els*(els+1))**2/2/np.pi
         #clpp = (cl_phiphi * (n0els*gamma_N0_sys_value**2))/cphi_tot * (els*(els+1))**2/2/np.pi
         clpp = (cl_phiphi + cphi_tot_value*winf**2 -2*gamma_phi_sys_value * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi
+        clpp = (cl_phiphi + cphi_tot_guess*winf**2 -2*gamma_phi_sys_guess * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi  # The totoal phi si now the new value, but assume we can mearure the total phi, so th eonly wrong assumption is gamma1
+
+
         #clpp = (cl_phiphi + cphi_tot_gauss*winf**2 -2*gamma_phi_sys_gauss * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi
         #clpp = (cl_phiphi * n0els)/cphi_tot * (els*(els+1))**2/2/np.pi
 
@@ -557,8 +564,11 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
             totname = namei + namej
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
-    
-    cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
+
+    if which_spectra == "delensed_scalar":
+        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
+    else:
+        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'])**2
     
     if include_B:
         print("Include BB")
@@ -690,7 +700,7 @@ def get_nongaussaian_cl_cov(which_spectra, Ls_to_get, diffphi, delta_cl_dict, el
 
 ########################################################################################################################
 
-def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05, noiseTi  = 1, iteration = False, param_dict = None):
+def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get = np.arange(2, 5000, 100), percent=0.05, noiseTi  = 1, iteration = False, param_dict = None, itername = '', derivtype = ''):
     """
     get non_gaussian part for Delta_cl (sample variance)
     """
@@ -757,15 +767,20 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
 
     elif which_spectra == "delensed_scalar":
         gamma_phi_sys_value = param_dict['gamma_phi_sys']
+        gamma_N0_sys_value = param_dict['gamma_N0_sys']
         cls = (unlensedCL.T * els*(els+1)/2/np.pi).T
         cls = np.insert(cls, 0, np.zeros((2, 4)), axis = 0)
-        winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
+        #winf0 = cl_phiphi / (nl_dict['PP'] + cl_phiphi + nl_dict['SYS'])
         cphi_tot = nl_dict['PP'] + cl_phiphi + nl_dict['SYS'] + 2*nl_dict['CROSS']
         cphi_tot = nl_dict['PP'] + cl_phiphi*gamma_phi_sys_value**2 + nl_dict['SYS']
+        cphi_tot = gamma_N0_sys_value**2*nl_dict['PP'] + cl_phiphi*gamma_phi_sys_value**2# + nl_dict['SYS']
+        #if systype == "cha"
+        winf0 = gamma_phi_sys_value*cl_phiphi / cphi_tot
         #recov_cl_phiphi = cl_phiphi + nl_dict['SYS']
         #clpp = (cl_phiphi * (n0els + n_sys_els) - crossphi**2)/cphi_tot * (els*(els+1))**2/2/np.pi
         clpp = (cl_phiphi * (nl_dict['PP'] + nl_dict['SYS']))/cphi_tot * (els*(els+1))**2/2/np.pi
         #clpp = (cl_phiphi * nl_dict['PP'])/cphi_tot * (els*(els+1))**2/2/np.pi #gamma only
+        clpp = (cl_phiphi * nl_dict['PP'] * gamma_N0_sys_value**2)/cphi_tot * (els*(els+1))**2/2/np.pi #gamma only
 
         #clpp = cl_phiphi * (1.-winf0**1) * (els*(els+1))**2/2/np.pi
         clpp = np.insert(clpp, 0, np.zeros(2), axis = 0)
@@ -780,10 +795,9 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
             #clppi = clphii * (1.-winf**1) * (els*(els+1))**2/2/np.pi
             crossphii = nl_dict['CROSS']*(1+percent)**0.5
             cphi_toti = nl_dict['PP'] + clphii + nl_dict['SYS'] + 2*crossphii
-            cphi_toti = nl_dict['PP'] + clphii*gamma_phi_sys_value**2 + nl_dict['SYS'] # without sys if only gamma
-            #clppi = (clphii * (n0els + n_sys_els) - crossphii**2)/cphi_toti * (els*(els+1))**2/2/np.pi
+            cphi_toti = nl_dict['PP']*gamma_N0_sys_value**2 + clphii*gamma_phi_sys_value**2# + nl_dict['SYS'] # without sys if only gamma
             clppi = (clphii * (nl_dict['PP'] + nl_dict['SYS']))/cphi_toti * (els*(els+1))**2/2/np.pi
-            #clppi = (clphii * nl_dict['PP'])/cphi_toti * (els*(els+1))**2/2/np.pi #if only gamma
+            clppi = (clphii * nl_dict['PP']*gamma_N0_sys_value**2)/cphi_toti * (els*(els+1))**2/2/np.pi #if only gamma
             clppi = np.insert(clppi, 0, np.zeros(2), axis = 0)
             thyresi = camb.correlations.lensed_cls(cls, clppi, lmax = els[-1])
             clsi = cls.copy()
@@ -813,15 +827,13 @@ def get_deriv_clBB(which_spectra, els, unlensedCL, cl_phiphi, nl_dict, Ls_to_get
         #deriv_fname = 'derivs/diffphi_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
         #deriv_self_fname = 'derivs/diffself_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
         #deriv_ee_fname = 'derivs/diffee_dl%s_Dl_delensed_n%s.json' %(dl, noiseTi)
-        itername = ''
-        if iteration:
-            itername = 'iter'
+
             
-        with open("derivs/diffphi_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
+        with open("derivs/diffphi_dl%s_Dl_%sdelensed_n%s_2gamma1.0_guessw_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_phi_dict.items()}, fp)
-        with open("derivs/diffself_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
+        with open("derivs/diffself_dl%s_Dl_%sdelensed_n%s_2gamma1.0_guessw_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({k: v.tolist() for k, v in diff_self_dict.items()}, fp)
-        with open("derivs/diffee_dl%s_Dl_%sdelensed_n%s_2gamma1.0_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
+        with open("derivs/diffee_dl%s_Dl_%sdelensed_n%s_2gamma1.0_guessw_rem6.json"%(dl, itername, noiseTi), 'w') as fp:
             j = json.dump({'BB': diff_EE_dict['BB'].tolist()}, fp)
         dataLs = np.column_stack((Ls_to_get))
         header0 = "Ls_to_get" 
@@ -1378,7 +1390,8 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
 
     TT_filter = np.zeros(len(els))
     BB_filter = np.zeros((len(els), len(els)))
-    TT_filter[30:5000] = 1
+    #TT_filter[30:5000] = 1
+    TT_filter[30:3000] = 1  ##cut3k
     BB_filter[30:5000, 30:5000] = 1
 
         
@@ -1479,7 +1492,7 @@ def get_fisher_mat5(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
     return F, covmat, [new_delta_dict, new_deriv_dict]
 ########################################################################################################################
 
-def get_fisher_mat6(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None, delta_cl_dict_nongau = None, binsize = 10):
+def get_fisher_mat_seperate(els, new_deriv_dict, new_delta_dict, params, pspectra_to_use, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None, Fell=True, F_nongau_CMB=True, F_nongau_ell=True,totalFmat=True,binsize = 5):
 
     if min_l_temp is None: min_l_temp = 0
     if max_l_temp is None: max_l_temp = 10000
@@ -1488,8 +1501,6 @@ def get_fisher_mat6(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
     if max_l_pol is None: max_l_pol = 10000
 
     npar = len(params)
-    F = np.zeros([npar,npar])
-    F_nongau = np.zeros([npar,npar])
 
     with_lensing = 0
     if 'PP' in pspectra_to_use:
@@ -1504,18 +1515,117 @@ def get_fisher_mat6(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
 
     PP_filter = np.zeros(len(els))
     TT_filter = np.zeros(len(els))
-    TT_filter[30:5000] = 1
+
+    TT_filter[min_l_temp:max_l_temp] = 1
+    PP_filter[min_l_pol:max_l_pol] = 1
+
+    newshape = len(els) // binsize
+    newl = np.arange(els[0], els[-1]+1, binsize)
+    newend = (len(newl)-1) * binsize
+    clname = ['TT','EE','TE','BB']
+
+    covnames = [i for i in new_delta_dict]
+    covCMBnames = ['TTTT','EEEE','TETE','BBBB']
+    if 'PPPP' in new_delta_dict:
+        covnames.remove('PPPP')
+
+    #if which_spectra == "total" or which_spectra=="delensed_scalar":
+    Fmat = np.zeros([npar,npar])
+    Fell = np.zeros([npar,npar, newshape])
+    F_nongau_ell = np.zeros([npar,npar,newshape, newshape])
+    F_nongau_diag = np.zeros([npar,npar,4, newshape])
+    F_nongau_ell_diag = np.zeros([npar,npar,4, newshape])
+    F_nongau_CMB = np.zeros([npar,npar,4])
+
+    if len(new_delta_dict['TTTT'].shape) == 2:
+        repcovmat_sep = [1/np.diag(new_delta_dict[i]) for i in covCMBnames]
+        repcovmat_sep = np.asarray(repcovmat_sep)
+        invcovmat_sep = [np.asmatrix(new_delta_dict[i]).I for i in covCMBnames]
+        invcovmat_sep = np.asarray(invcovmat_sep)
+        repcovmat_sep2 = [np.diag(invcovmat_sep[i]) for i in range(4)]
+        repcovmat_sep2 = np.asarray(repcovmat_sep2)
+
+        covmat = np.block([[new_delta_dict['TTTT'], new_delta_dict['TTEE'], new_delta_dict['TTTE'],new_delta_dict['BBTT'].T],[new_delta_dict['EETT'], new_delta_dict['EEEE'], new_delta_dict['EETE'], new_delta_dict['BBEE'].T],[new_delta_dict['TETT'], new_delta_dict['TEEE'], new_delta_dict['TETE'], new_delta_dict['BBTE'].T],[new_delta_dict['BBTT'], new_delta_dict['BBEE'], new_delta_dict['BBTE'],new_delta_dict['BBBB']]])
+        covmat = np.asarray(covmat)
+
+    else:        
+        new_delta_dict['BBBB'] = np.diag(new_delta_dict['BBBB'])
+        new_delta_dict['BBTT'] = np.diag(new_delta_dict['BBTT'])
+        new_delta_dict['BBTE'] = np.diag(new_delta_dict['BBTE'])
+        new_delta_dict['BBEE'] = np.diag(new_delta_dict['BBEE'])
+        repcovmat_sep = [1/new_delta_dict[i] for i in covCMBnames]
+        repcovmat_sep = np.asarray(repcovmat_sep)
+        invcovmat_sep = [np.diag(1/new_delta_dict[i]) for i in covCMBnames]
+        invcovmat_sep = np.asarray(invcovmat_sep)
+        repcovmat_sep2 = repcovmat_sep
+
+        covmat = np.block([[np.diag(new_delta_dict['TTTT']), np.diag(new_delta_dict['TTEE']), np.diag(new_delta_dict['TTTE']),np.diag(new_delta_dict['BBTT'].T)],[np.diag(new_delta_dict['EETT']), np.diag(new_delta_dict['EEEE']), np.diag(new_delta_dict['EETE']), np.diag(new_delta_dict['BBEE'].T)],[np.diag(new_delta_dict['TETT']), np.diag(new_delta_dict['TEEE']), np.diag(new_delta_dict['TETE']), np.diag(new_delta_dict['BBTE'].T)],[np.diag(new_delta_dict['BBTT']), np.diag(new_delta_dict['BBEE']), np.diag(new_delta_dict['BBTE']),np.diag(new_delta_dict['BBBB'])]])
+        covmat = np.asarray(covmat)
+        
+
+    lenloop = len(new_delta_dict['TTTT'])
+    BB_filter = np.zeros(lenloop)
+    ids = np.nonzero((newl>30)&(newl<30))
+    #BB_filter[0:20] = 1
+    BB_filter[ids] = 1
+    TT_filter = np.zeros(lenloop)
+    ids = np.nonzero(newl<=3000)
+    TT_filter[ids] = 1
+
+    namelist = []
+    for i, cmbi in enumerate(clname):
+        for j, cmbj in enumerate(clname):
+            namelist.append(cmbi+cmbj)
+
+    for pcnt,p in enumerate(params):
+        new_deriv_dict[p]['BB'] = new_deriv_dict[p]['BB']*BB_filter
+        #new_deriv_dict[p]['TT'] = new_deriv_dict[p]['TT']*TT_filter
+    
+
+    if totalFmat:        
+        invcovmat = np.asarray(np.asmatrix(covmat).I)
+        for pcnt,p in enumerate(params):
+            for pcnt2,p2 in enumerate(params):
+                vect1 = np.asarray([new_deriv_dict[p][xyi] for xyi in clname])
+                vect2 = np.asarray([new_deriv_dict[p2][wzi] for wzi in clname])
+                vect1 = vect1.reshape(-1)
+                vect2 = vect2.reshape(-1)
+                fij = np.einsum('i, ij, j->', vect1, invcovmat, vect2)
+                Fmat[pcnt,pcnt2] = fij*binsize
+
+    for pcnt,p in enumerate(params):
+        for pcnt2,p2 in enumerate(params):
+            vect1 = np.asarray([new_deriv_dict[p][xyi] for xyi in clname])
+            vect2 = np.asarray([new_deriv_dict[p2][wzi] for wzi in clname])
+            inv_cov_mat_sep = invcovmat_sep
+            fm = np.einsum('mi, mij, mj->m', vect1, inv_cov_mat_sep, vect2)
+            fij = np.einsum('mi, mij, mj->ij', vect1, inv_cov_mat_sep, vect2)
+            fml = np.einsum('ml, ml, ml->ml', vect1, repcovmat_sep, vect2)
+            fml2 = np.einsum('ml, ml, ml->ml', vect1, repcovmat_sep2, vect2)
+            F_nongau_CMB[pcnt, pcnt2] = fm*binsize
+            F_nongau_ell[pcnt, pcnt2] = fij*binsize
+            F_nongau_ell_diag[pcnt, pcnt2] = fml2*binsize
+            F_nongau_diag[pcnt, pcnt2] = fml*binsize
+
+    return newl, Fmat, F_nongau_CMB, F_nongau_ell, F_nongau_diag, F_nongau_ell_diag
+
+########################################################################################################################
+
+
+def rebin_deriv(els, cl_deriv_dict, delta_cl_dict=None, min_l_temp = None, max_l_temp = None, min_l_pol = None, max_l_pol = None, binsize = 5):
+
+    params = cl_deriv_dict.keys()
+
+    PP_filter = np.zeros(len(els))
+    TT_filter = np.zeros(len(els))
+
+    TT_filter[30:3000] = 1
     PP_filter[30:5000] = 1
 
     newshape = len(els) // binsize
     newl = np.arange(els[0], els[-1]+1, binsize)
     newend = (len(newl)-1) * binsize
-    clname = ['TT','EE','TE']
-    #clname = ['TT','EE','TE','BB']
-
-    covnames = [i for i in delta_cl_dict]
-    if 'PPPP' in delta_cl_dict:
-        covnames.remove('PPPP')
+    clname = ['TT','EE','TE','BB']
 
     new_deriv_dict = {}
     new_delta_dict = {}
@@ -1523,72 +1633,19 @@ def get_fisher_mat6(els, cl_deriv_dict, delta_cl_dict, params, pspectra_to_use, 
         pdict = cl_deriv_dict[p]
         new_deriv_dict[p] = {}
         for keyi in clname:
-            cut_del = pdict[keyi][:newend]
+            filpdict = pdict[keyi]*TT_filter
+            cut_del = filpdict[:newend]
             new_del = cut_del.reshape((newshape, -1)).mean(axis = 1)
             new_deriv_dict[p][keyi] = new_del
             
-    for keyi in delta_cl_dict:
-        cut_delta = delta_cl_dict[keyi][:newend]
-        new_delta = cut_delta.reshape((newshape, -1)).mean(axis = 1)
-        new_delta_dict[keyi] = new_delta
-        
-
-    lenloop = len(new_delta_dict['TTTT'])
-
-    for lcntr in np.arange(lenloop):
-        TT, EE, TE = 0., 0., 0.
-        ##############################################################################
-        #get covariance matrix and its inverse
-        
-        COV_mat_l = np.zeros((len(new_delta_dict)))
-        for i, poweri in enumerate(new_delta_dict):
-            COV_mat_l[i] = new_delta_dict[poweri][lcntr]
-
-        COV_mat_l = np.mat(COV_mat_l.reshape(len(clname),len(clname)))
-        inv_COV_mat_l = linalg.pinv2(COV_mat_l)
-
-        ##############################################################################
-        #get the parameter combinations
-        param_combinations = []
-        for pcnt,p in enumerate(params):
-            for pcnt2,p2 in enumerate(params):
-                param_combinations.append([p,p2, pcnt, pcnt2])
-
-        ##############################################################################
-
-        for (p,p2, pcnt, pcnt2) in param_combinations:
+    return new_deriv_dict
 
 
-            TT_der1, EE_der1, TE_der1 = 0., 0., 0.
-            TT_der2, EE_der2, TE_der2 = 0., 0., 0.
-
-            if 'TT' in cl_deriv_dict[p]:
-                TT_der1 = new_deriv_dict[p]['TT'][lcntr]*TT_filter[lcntr]
-                TT_der2 = new_deriv_dict[p2]['TT'][lcntr]*TT_filter[lcntr]
-            if 'EE' in new_deriv_dict[p]:
-                EE_der1 = new_deriv_dict[p]['EE'][lcntr]
-                EE_der2 = new_deriv_dict[p2]['EE'][lcntr]
-            if 'TE' in new_deriv_dict[p]:
-                TE_der1 = new_deriv_dict[p]['TE'][lcntr]
-                TE_der2 = new_deriv_dict[p2]['TE'][lcntr]
-            if 'BB' in new_deriv_dict[p]:
-                BB_der1 = new_deriv_dict[p]['BB'][lcntr]
-                BB_der2 = new_deriv_dict[p2]['BB'][lcntr]
 
 
-            fprime1_l_vec = np.array((TT_der1, EE_der1, TE_der1))
-            fprime2_l_vec = np.array((TT_der2, EE_der2, TE_der2))
-            #fprime1_l_vec = np.array((TT_der1, EE_der1, TE_der1, BB_der1))
-            #fprime2_l_vec = np.array((TT_der2, EE_der2, TE_der2, BB_der2))
-
-            curr_val = np.einsum('i,ij,j->', fprime1_l_vec, inv_COV_mat_l, fprime2_l_vec)
-
-            F[pcnt2,pcnt] += curr_val*binsize
 
 
-    return F
-
-########################################################################################################################
+#########################################################################################################################
 
 def fix_params(F_mat, param_names, fix_params):
 
@@ -1933,7 +1990,7 @@ def get_delensed_from_lensed_cvltion(els, cl_uns, cl_tots , cphi, rho2, nl_TT, n
 #def get_delensed_from_lensed(els, cl_uns, cl_tots , cphi, n0, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 10):
 
 #def calculate_n0(cl_uns, cl_tots, els):
-def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180, iteration = False):
+def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1024, fftd = 1./60/180, iteration = False, lmaxTT = 3000):
     xs = np.fft.fftfreq(dimx, fftd)
     ys = np.fft.fftfreq(dimy, fftd)
     #xs = np.arange(-6000, 6000, 10)
@@ -1969,6 +2026,10 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
     cle_u = cl_uns[:,1]
     clb_u = cl_uns[:,2]
     clte_u = cl_uns[:,3]
+    TTfilter = np.ones((len(els)))
+    idlT = np.nonzero(els > lmaxTT)
+    TTfilter[idlT] = 0
+    TTf = interpolate.interp1d(els, TTfilter)
     print('lenels',len(els))
     print('leneclt',len(clt_tot))
     cunlt = interpolate.interp1d(els, clt_u) #unlensed
@@ -1983,10 +2044,11 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
     C_TT = interpolate.interp1d(els, clt_tot + nl_TT) #observe
     C_TE = interpolate.interp1d(els, clte_tot) #observe
     if iteration:
-        C_BB = interpolate.interp1d(els, clb_u + nl_PP) #observe
-        C_EE = interpolate.interp1d(els, cle_u + nl_PP) #observe
-        C_TT = interpolate.interp1d(els, clt_u + nl_TT) #observe
-        C_TE = interpolate.interp1d(els, clte_u) #observe
+        print("iteration")
+        #C_BB = interpolate.interp1d(els, clb_u + nl_PP) #observe
+        #C_EE = interpolate.interp1d(els, cle_u + nl_PP) #observe
+        #C_TT = interpolate.interp1d(els, clt_u + nl_TT) #observe
+        #C_TE = interpolate.interp1d(els, clte_u) #observe
         
     for i, Li in enumerate(nels):
         if Li%1000 == 2:
@@ -2019,12 +2081,12 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
         ce_dot_cb = C_EE(l1s) * C_BB(l2s)
         ce_dot_ce = 2 * C_EE(l1s) * C_EE(l2s)
         #cb_dot_cb = 2 * C_BB(l1s) * C_BB(l2s)
-        ct_dot_ct = 2 * C_TT(l1s) * C_TT(l2s)
-        ct_dot_cb = C_TT(l1s) * C_BB(l2s)
+        ct_dot_ct = 2 * C_TT(l1s) * C_TT(l2s)# *TTf(l1s)*TTf(l2s)
+        ct_dot_cb = C_TT(l1s) * C_BB(l2s)#*TTf(l1s)
         ct_dot_ce1 = C_TT(l1s) * C_EE(l2s)
         ct_dot_ce2 = C_TT(l2s) * C_EE(l1s)
         cte_tot_cte = C_TE(l1s)*C_TE(l2s)
-        tes =  ct_dot_ce2 * ct_dot_ce1 - ( cte_tot_cte )**2
+        tes =  (ct_dot_ce2 * ct_dot_ce1 - ( cte_tot_cte )**2)#*TTf(l1s)*TTf(l2s)
         ideb = np.nonzero(ce_dot_cb)
         idee = np.nonzero(ce_dot_ce)
         #idbb = np.nonzero(cb_dot_cb)
@@ -2055,12 +2117,13 @@ def calculate_n0(nels, els, cl_uns, cl_tots, nl_TT, nl_PP, dimx = 1024, dimy = 1
         s4 = sum(intgitem_tb)
         s5 = sum(intgitem_te)
         #print("s0 ",s0, "s1 ", s1, "s3 ",s3,  "s4 ",s4, "s5 ", s5)
+        #if s0 != 0 or s1 != 0 or s3 != 0 or s4 !=0 or s5 != 0 :
         if s0 != 0 and s1 != 0 and s3 != 0 and s4 !=0 and s5 != 0 :
-            n0['EB'][i] = (2 * np.pi)**2 / s0 /dluse**2     # dluse is the integral dl
-            n0['EE'][i] = (2 * np.pi)**2 / s1 /dluse**2     # dluse is the integral dl
-            n0['TT'][i] = (2 * np.pi)**2 / s3 /dluse**2     # dluse is the integral dl
-            n0['TB'][i] = (2 * np.pi)**2 / s4 /dluse**2     # dluse is the integral dl
-            n0['TE'][i] = (2 * np.pi)**2 / s5 /dluse**2     # dluse is the integral dl
+            n0['EB'][i] = np.nan_to_num((2 * np.pi)**2 / s0) /dluse**2     # dluse is the integral dl
+            n0['EE'][i] = np.nan_to_num((2 * np.pi)**2 / s1) /dluse**2     # dluse is the integral dl
+            n0['TT'][i] = np.nan_to_num((2 * np.pi)**2 / s3) /dluse**2     # dluse is the integral dl
+            n0['TB'][i] = np.nan_to_num((2 * np.pi)**2 / s4) /dluse**2     # dluse is the integral dl
+            n0['TE'][i] = np.nan_to_num((2 * np.pi)**2 / s5) /dluse**2     # dluse is the integral dl
     return n0
 
 ########################################################################################################################
