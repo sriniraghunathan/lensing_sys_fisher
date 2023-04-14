@@ -632,6 +632,8 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
     """
     nl_dict['ET'] = nl_dict['TE']
     cl_dict['ET'] = cl_dict['TE']
+    nl_dict['Tphi'] = 0
+    nl_dict['Ephi'] = 0
     #comb2 = list(combinations(clname, 2))
     clname = ['TT','EE','TE']
     cmbnames = ['TT','EE','TE','BB']
@@ -651,8 +653,20 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
 
+    for i,xy  in enumerate(clname):
+        pair1 = xy[0]+'phi'
+        pair2 = xy[1]+'phi'
+        pair3 = xy[0]+'phi'
+        pair4 = xy[1]+'phi'
+        totname = 'PP' + xy
+        covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
+        cov_dict[totname] = covij
+
+    cov_dict['PPBB'] = np.zeros(cov_dict['PPTT'].shape)
+
     if which_spectra == "delensed_scalar":
         cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
+
     else:
         cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'])**2
     
@@ -720,7 +734,7 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         print('BBBB: ', new_cov_dict['BBBB'])
     
         for keyi in cov_dict:
-            if keyi != "PPPP" and keyi[0] != "B":
+            if keyi[0] != "P" and keyi[0] != "B":
                 sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict[keyi[0]+keyi[1]], cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[keyi[2]+keyi[3]])
                 if len(cov_dict[keyi].shape) == 2:
                     new_cov_dict[keyi] += sumlp*dl
@@ -732,10 +746,11 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         current_time = now.strftime("%H:%M:%S")
         print("Current Time =", current_time)
 
-
+        drephi_dphi = np.eye(new_diff_phi_dict['TT'].shape[0], new_diff_phi_dict['TT'].shape[1])
         for itemi in cmbnames:
-            sumlpi = np.einsum('ai,a->i', new_diff_phi_dict[itemi], cov_dict['PPPP'][Ls_to_get-2])   
-            new_cov_dict['PP'+itemi] = np.diag(sumlpi)
+
+            sumlpi = np.einsum('ai,a,aj->ij', drephi_dphi, cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[itemi])   
+            new_cov_dict['PP'+itemi] = np.diag(new_cov_dict['PP'+itemi]) + sumlpi*dl
 
     return new_cov_dict
 
