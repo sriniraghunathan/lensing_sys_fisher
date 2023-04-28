@@ -24,7 +24,8 @@ print("Current Time =", current_time)
 #get the necessary arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default='params/params_planck_r_0.0_2015_cosmo_lensed_LSS.txt')
-parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='delensed_scalar', choices=['delensed_scalar', 'unlensed_total', 'total']) # add delensed
+#parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='delensed_scalar', choices=['delensed_scalar', 'unlensed_total', 'total']) # add delensed
+parser.add_argument('-which_spectra', dest='which_spectra', action='store', help='which_spectra', type=str, default='total', choices=['delensed_scalar', 'unlensed_total', 'total']) # add delensed
 
 #reduce lensing amplitude by xx per cent. Roughly mimicking S4-Wide delensing.
 parser.add_argument('-Alens', dest='Alens', action='store', help='Alens', type=float, default=1) 
@@ -81,7 +82,7 @@ min_l_pol, max_l_pol = 30, 5000
 #cosmological parameters
 #params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar', 'gamma_phi_sys', 'gamma_N0_sys']
 params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','neff']
-params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','neff','gamma_phi_sys', 'gamma_N0_sys']
+#params_to_constrain = ['As','tau','r','ns', 'ombh2', 'omch2', 'thetastar','neff','gamma_phi_sys', 'gamma_N0_sys']
 fix_params = ['Alens', 'ws', 'omk']#, 'mnu'] #parameters to be fixed (if included in fisher forecasting)
 #fix_params = ['r','ns', 'ombh2', 'thetastar']
 #prior_dic = {'tau':0.007} #Planck-like tau prior
@@ -159,7 +160,7 @@ if use_ilc_nl:
     nl_PP = nl_dict['EE']
 
 for i in range(len(rms_map_T_list)):
-    if i > 20:
+    if i > 10:
         continue
     n0filename = 'params/generate_n0s_iter1st_rmsT%s_fwhmm%s_dl5.dat'%(rms_map_T_list[i], 1.0)
     file_exists = exists(n0filename)
@@ -327,7 +328,7 @@ for i in range(len(rms_map_T_list)):
         new_delta_dict = np.load(delta_name)
         new_delta_dict = new_delta_dict.item()
     else:
-        new_delta_dict = tools.get_delta_cl_cov2(els, cl_dict, nl_dict, which_spectra = which_spectra,dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, Ls_to_get = Ls_to_get)
+        new_delta_dict = tools.get_delta_cl_cov2(els, unlensedCL, cl_dict, nl_dict, which_spectra = which_spectra,dB_dE_dict = diff_EE_dict, diff_phi_dict = diff_phi_dict, diff_self_dict = diff_self_dict, Ls_to_get = Ls_to_get, min_l_temp = min_l_temp, max_l_temp = 3000)
         np.save(delta_name, new_delta_dict)
 
     print('finishi geting covariance','\n')
@@ -346,6 +347,7 @@ for i in range(len(rms_map_T_list)):
     newl, F_mat, F_nongau_CMB, F_nongau_diag, F_nongau_ell_diag  = tools.get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, param_names, pspectra_to_use = pspectra_to_use,\
                                             min_l_temp = min_l_temp, max_l_temp = 3000, min_l_pol = min_l_pol, max_l_pol = 5000,binsize = binsize)
 
+    np.save("ForNote/F_nongau_mat_%s_%s%s_n%s_addlensing2.npy"%(itername,which_spectra, systype, rms_map_T_list[i]), F_mat)
     np.save("ForNote/F_nongau_CMB_%s_%s%s_n%s_addlensing.npy"%(itername,which_spectra, systype, rms_map_T_list[i]), F_nongau_CMB)
     np.save("ForNote/F_nongau_diag_%s_%s%s_n%s_addlensing.npy"%(itername,which_spectra, systype, rms_map_T_list[i]), F_nongau_diag)
     np.save("ForNote/F_nongau_ell_diag_%s_%s%s_n%s_addlensing.npy"%(itername,which_spectra, systype, rms_map_T_list[i]), F_nongau_ell_diag)
@@ -360,6 +362,6 @@ for i in range(len(rms_map_T_list)):
     out_dict['Fmat'] = F_mat.tolist()
     out_dict['fsky'] = fsky
 
-    with open("results/F_mat_CDMp_%s%s_bin%s_dl%s_%s_n%s_2gammas1.00_rem6_%s_addlensing.json"%(itername, which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i], systype), 'w') as fp:
+    with open("results/F_mat_CDMp_%s%s_bin%s_dl%s_%s_n%s_2gammas1.00_rem6_%s_addlensing2.json"%(itername, which_spectra, binsize, Lsdl, camborself, rms_map_T_list[i], systype), 'w') as fp:
             j = json.dump({k: v for k, v in out_dict.items()}, fp)
 

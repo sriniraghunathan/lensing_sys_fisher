@@ -355,8 +355,9 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
 
     #K or uK
     if param_dict['uK']:
-        cl_Tphi *= 1e6##1e12
-        cl_Ephi *= 1e6##1e12
+        print('CMB unit is uk')
+        #cl_Tphi *= 1e6##1e12
+        #cl_Ephi *= 1e6##1e12
 
     cl_phiphi = cl_phiphi# * (els * (els+1))**2. /(2. * np.pi)
     cl_Tphi = cl_Tphi# * (els * (els+1))**1.5 /(2. * np.pi)
@@ -626,12 +627,13 @@ def get_delta_cl_cov(els, cl_dict, nl_dict, fsky = 1., include_lensing = False, 
 
 ########################################################################################################################
 
-def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_lensing = True, include_B = True, dB_dE_dict = None, diff_phi_dict = None, diff_self_dict = None, which_spectra = None, Ls_to_get = None):
+def get_delta_cl_cov2(els, unlensedCL, cl_dict, nl_dict, fsky = 1., binsize = 5, include_lensing = True, include_B = True, dB_dE_dict = None, diff_phi_dict = None, diff_self_dict = None, which_spectra = None, Ls_to_get = None, min_l_temp = 2, max_l_temp = 3000):
     """
     get Delta_cl (sample variance)
     """
     nl_dict['ET'] = nl_dict['TE']
     cl_dict['ET'] = cl_dict['TE']
+    nl_dict['TT'][max_l_temp:] = nl_dict['TT'][max_l_temp:]*100
     nl_dict['Tphi'] = 0
     nl_dict['Ephi'] = 0
     #comb2 = list(combinations(clname, 2))
@@ -652,7 +654,7 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
             totname = xy + wz
             covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
             cov_dict[totname] = covij
-
+    '''
     for i,xy  in enumerate(clname):
         pair1 = xy[0]+'phi'
         pair2 = xy[1]+'phi'
@@ -660,19 +662,20 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         pair4 = xy[1]+'phi'
         totname = 'PP' + xy
         covij = 1/fsky / (2.*els + 1.) * ( (cl_dict[pair1]+nl_dict[pair1])*(cl_dict[pair2]+nl_dict[pair2]) + (cl_dict[pair3]+nl_dict[pair3])*(cl_dict[pair4]+nl_dict[pair4]) )
-        cov_dict[totname] = covij
+        cov_dict[totname] = np.zeros(covij.shape)
+    '''
+    #cov_dict['PPBB'] = np.zeros(cov_dict['PPTT'].shape)
 
-    cov_dict['PPBB'] = np.zeros(cov_dict['PPTT'].shape)
-
-    if which_spectra == "delensed_scalar":
-        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
-
-    else:
-        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'])**2
-    
+    cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
 
     cov_dict['BBBB'] = 2/fsky / (2.*els + 1.) * ( (cl_dict['BB']+nl_dict['BB'])*(cl_dict['BB']+nl_dict['BB']))
     
+    cl_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'])**2
+    cl_dict['EEEE'] = 2 /fsky / (2.*els + 1.) * (unlensedCL[:, 1])**2
+    cl_dict['EETT'] = 2 /fsky / (2.*els + 1.) * (unlensedCL[:, 3])**2
+    cl_dict['EETE'] = 2 /fsky / (2.*els + 1.) * unlensedCL[:, 1] * unlensedCL[:, 3]
+
+
     newshape = len(els) // binsize
     newl = np.arange(els[0], els[-1]+1, binsize)
     newend = (len(newl)-1) * binsize
@@ -694,8 +697,8 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         middiff = diff_phi_dict[keyi][:,:newend]
         new_diff_phi_dict[keyi] = middiff.reshape((origsiez[0],newshape, -1)).mean(axis = -1)
     for keyi in clname:
-        middiff = diff_self_dict[keyi][:,:newend]
-        new_diff_self_dict[keyi] = middiff.reshape((origsiez[0],newshape, -1)).mean(axis = -1)
+        diffid = Ls_to_get-2
+        new_diff_self_dict[keyi] = diff_self_dict[keyi][:,diffid[:newshape]]
         
     if which_spectra == "unlensed_total":
         for item in clname:
@@ -704,11 +707,9 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
     print(new_cov_dict.keys())
         
     if which_spectra == "total" or which_spectra == "delensed_scalar":
-        deriv_filter = np.zeros(dB_dE_dict['BB'].shape)
-        deriv_filter[8:, 30:] = 1
         print(new_dB_dE_dict['BB'].shape)
-        sumle = np.einsum('ai,a,aj->ij', new_dB_dE_dict['BB'], cov_dict['EEEE'][Ls_to_get-2], new_dB_dE_dict['BB'])
-        sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict['BB'], cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict['BB'])
+        sumle = np.einsum('ai,a,aj->ij', new_dB_dE_dict['BB'], cl_dict['EEEE'][Ls_to_get-2], new_dB_dE_dict['BB'])
+        sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict['BB'], cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict['BB'])
         dl = Ls_to_get[1] - Ls_to_get[0]
         new_cov_dict['BBBB'] = np.diag(new_cov_dict['BBBB']) + sumle*dl + sumlp*dl
         print('BBBB: ', new_cov_dict['BBBB'])
@@ -720,22 +721,19 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         
         for item in clname:
             fullname = 'EE'+item
-            if fullname == 'EETT':
-                fullname = 'TTEE'
-            sumle = np.einsum('ai,a,aj->ij', new_dB_dE_dict['BB'], cov_dict[fullname][Ls_to_get-2], new_diff_self_dict[item])
-            sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict['BB'], cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[item])
-            new_cov_dict['BB'+item] = sumlp*dl + sumle*dl
+            sumle = np.einsum('ai,a,aj->ij', new_dB_dE_dict['BB'], cl_dict[fullname][Ls_to_get-2], new_diff_self_dict[item])
+            sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict['BB'], cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[item])
+            new_cov_dict['BB'+item] = sumlp*dl + sumle
             print(cov_dict.keys())
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             print("Current Time =", current_time)
 
 
-        print('BBBB: ', new_cov_dict['BBBB'])
     
         for keyi in cov_dict:
             if keyi[0] != "P" and keyi[0] != "B":
-                sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict[keyi[0]+keyi[1]], cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[keyi[2]+keyi[3]])
+                sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict[keyi[0]+keyi[1]], cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[keyi[2]+keyi[3]])
                 if len(cov_dict[keyi].shape) == 2:
                     new_cov_dict[keyi] += sumlp*dl
                 else:
@@ -749,9 +747,16 @@ def get_delta_cl_cov2(els, cl_dict, nl_dict, fsky = 1., binsize = 5, include_len
         drephi_dphi = np.eye(new_diff_phi_dict['TT'].shape[0], new_diff_phi_dict['TT'].shape[1])
         for itemi in cmbnames:
 
-            sumlpi = np.einsum('ai,a,aj->ij', drephi_dphi, cov_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[itemi])   
-            new_cov_dict['PP'+itemi] = np.diag(new_cov_dict['PP'+itemi]) + sumlpi*dl
-
+            sumlpi = np.einsum('ai,a,aj->ij', drephi_dphi, cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[itemi])   
+            #new_cov_dict['PP'+itemi] = np.diag(new_cov_dict['PP'+itemi]) + sumlpi*dl
+            new_cov_dict['PP'+itemi] = sumlpi
+    '''
+    if which_spectra == 'total' or which_spectra == 'delensed_scalar':
+        cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
+        cut_delta = cov_dict['PPPP'][:newend]
+        new_delta = cut_delta.reshape((newshape, -1)).mean(axis = 1)
+        new_cov_dict['PPPP'] = np.diag(new_delta)
+    '''
     return new_cov_dict
 
 
@@ -1692,7 +1697,7 @@ def get_fisher_mat_seperate(els, new_deriv_dict, new_delta_dict, params, pspectr
 
 ########################################################################################################################
 
-def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspectra_to_use, min_l_temp = 30, max_l_temp = 3000, min_l_pol = 30, max_l_pol = 5000, Fell=True, F_nongau_CMB=True,totalFmat=True,binsize = 5):
+def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspectra_to_use, min_l_temp = 30, max_l_temp = 3000, min_l_pol = 30, max_l_pol = 5000, Fell=True, F_nongau_CMB=True,totalFmat=True,binsize = 5, addlensing = True):
 
     npar = len(params)
 
@@ -1723,6 +1728,8 @@ def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspec
 
 
     clname = ['TT','EE','TE','BB','PP']
+    if addlensing == False:
+        clname = ['TT','EE','TE','BB']
     covnames = [i for i in new_delta_dict]
     covCMBnames = ['TTTT','EEEE','TETE','BBBB','PPPP']
 
@@ -1742,6 +1749,10 @@ def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspec
         repcovmat_sep2 = np.asarray(repcovmat_sep2)
 
         covmat = np.block([[new_delta_dict['TTTT'], new_delta_dict['TTEE'], new_delta_dict['TTTE'],new_delta_dict['BBTT'].T,new_delta_dict['PPTT'].T],[new_delta_dict['TTEE'].T, new_delta_dict['EEEE'], new_delta_dict['EETE'], new_delta_dict['BBEE'].T,new_delta_dict['PPEE'].T],[new_delta_dict['TTTE'].T, new_delta_dict['EETE'], new_delta_dict['TETE'], new_delta_dict['BBTE'].T,new_delta_dict['PPTE'].T],[new_delta_dict['BBTT'], new_delta_dict['BBEE'], new_delta_dict['BBTE'], new_delta_dict['BBBB'], new_delta_dict['PPBB'].T],[new_delta_dict['PPTT'], new_delta_dict['PPEE'],new_delta_dict['PPTE'],new_delta_dict['PPBB'],new_delta_dict['PPPP']]])
+
+        if addlensing == False:
+            covmat = np.block([[new_delta_dict['TTTT'], new_delta_dict['TTEE'], new_delta_dict['TTTE'],new_delta_dict['BBTT'].T],[new_delta_dict['EETT'], new_delta_dict['EEEE'], new_delta_dict['EETE'], new_delta_dict['BBEE'].T],[new_delta_dict['TETT'], new_delta_dict['TEEE'], new_delta_dict['TETE'], new_delta_dict['BBTE'].T],[new_delta_dict['BBTT'], new_delta_dict['BBEE'], new_delta_dict['BBTE'],new_delta_dict['BBBB']]])
+            
         covmat = np.asarray(covmat)
 
     else:        
@@ -1752,6 +1763,10 @@ def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspec
         repcovmat_sep2 = repcovmat_sep
         zeromat = np.zeros((newshape, newshape))
         covmat = np.block([[np.diag(new_delta_dict['TTTT']), np.diag(new_delta_dict['TTEE']), np.diag(new_delta_dict['TTTE']), zeromat, zeromat],[np.diag(new_delta_dict['TTEE'].T), np.diag(new_delta_dict['EEEE']), np.diag(new_delta_dict['EETE']), zeromat, zeromat],[np.diag(new_delta_dict['TTTE'].T), np.diag(new_delta_dict['EETE'].T), np.diag(new_delta_dict['TETE']), zeromat, zeromat],[zeromat, zeromat, zeromat,np.diag(new_delta_dict['BBBB']), zeromat],[zeromat, zeromat, zeromat, zeromat, np.diag(new_delta_dict['PPPP'])]])
+
+        if addlensing == False:
+            covmat = np.block([[np.diag(new_delta_dict['TTTT']), np.diag(new_delta_dict['TTEE']), np.diag(new_delta_dict['TTTE']), zeromat],[np.diag(new_delta_dict['TTEE'].T), np.diag(new_delta_dict['EEEE']), np.diag(new_delta_dict['EETE']), zeromat],[np.diag(new_delta_dict['TTTE'].T), np.diag(new_delta_dict['EETE'].T), np.diag(new_delta_dict['TETE']), zeromat],[zeromat, zeromat, zeromat,np.diag(new_delta_dict['BBBB'])],])
+
         covmat = np.asarray(covmat)
         
 
@@ -1777,8 +1792,14 @@ def get_fisher_mat_addlensing(els, new_deriv_dict, new_delta_dict, params, pspec
                 vect2 = np.asarray([new_deriv_dict[p2][wzi] for wzi in clname])
                 vect1 = vect1.reshape(-1)
                 vect2 = vect2.reshape(-1)
-                fij = np.einsum('i, ij, j->', vect1, invcovmat, vect2)
-                Fmat[pcnt,pcnt2] = fij*binsize
+                fij = np.einsum('i, ij, j->ij', vect1, invcovmat, vect2)
+                sumtotal = np.sum(fij)
+                sumdiag = 0
+                fijsp = np.array(np.hsplit(fij, 5))
+                fijsp = [np.vsplit(i, 5) for i in fijsp]
+                fijsp = [i for j in fijsp for i in j]
+                sumdiag = sum([np.trace(i) for i in fijsp])
+                Fmat[pcnt,pcnt2] = sumdiag*binsize + sumtotal*binsize**2
 
     for pcnt,p in enumerate(params):
         for pcnt2,p2 in enumerate(params):
