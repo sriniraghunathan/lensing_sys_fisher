@@ -275,6 +275,7 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         winf = gamma_phi_sys_value*cphifun(els) / cphi_tot_guess #change phi and see the deriv, keep total_phi change with the real value, but the gamma1 in w not change to present our limmited knowledeg of phi
         winf = cphifun(els) / cphi_tot_guess #Same thing, only that the winner doesn't include gamma in phi, let' sname it change change total 
         winf = gamma_phi_sys_guess*cphifun(els) / cphi_tot_guess #June 6th, we assume the field is already there. And we want ot calibrate ir, g0 and g1 are our theory, so it does affect our choice about the winner filter.(Assume we already get good fit for g0 and g1 with cl_phi_tot and minimize the c^phi_res. Say guessgamma)
+        winfvalue = gamma_phi_sys_value*cphifun(els) / cphi_tot_value
         #winf = gamma_phi_sys_guess*cphifun(els) / cphi_tot_guess#March 23th , we assume all the params are our guess
 
         #winf = gamma_phi_sys_guess*cphifun(els) / cphi_tot_value
@@ -293,6 +294,8 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
         clpp = (cl_phiphi + cphi_tot_guess*winf**2 -2*gamma_phi_sys_guess * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi  # others are the same except for that the gammaNo has an extra gammaphi in front of it
         clpp = (cl_phiphi + cphi_tot_value*winf**2 -2*gamma_phi_sys_value * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi  # June 6th
         clpp = (cl_phiphi - gamma_phi_sys_guess**2 * cl_phiphi**2/cphi_tot_guess) * (els*(els+1))**2/2/np.pi  # June 18th Choose gamma0 to minimiaze residual, and we don't have gamma0 and gamma1 anymore, but gamma_phi. named it gphionly
+        clpp = (winfvalue**2 * cphi_tot_value - 2*gamma_phi_sys_guess*gamma_phi_sys_value * cl_phiphi**2/cphi_tot_value + cl_phiphi) * (els*(els+1))**2/2/np.pi   # July 11th Choose gamma0 to minimiaze residual, and use chi^2 to get derive.
+
         #clpp = (cl_phiphi + cphi_tot_guess*winf**2 -2*gamma_phi_sys_guess * cl_phiphi * winf) * (els*(els+1))**2/2/np.pi  #  Here we update the all gamma with the assumption that we try to find the best fit parameters and the gamma in phi and the gamma in w is the same paramter we assume and it'snon biased.
 
 
@@ -371,8 +374,11 @@ def get_cmb_spectra_using_camb(param_dict, which_spectra, step_size_dict_for_der
     cl_phiphi = cl_phiphi# * (els * (els+1))**2. /(2. * np.pi)
     cl_Tphi = cl_Tphi# * (els * (els+1))**1.5 /(2. * np.pi)
     cl_Ephi = cl_Ephi# * (els * (els+1))**1.5 /(2. * np.pi)
-    
-    cl_dict['PP'] = cl_phiphi
+    gamma_phi_sys_guess = param_dict_to_use['gamma_phi_sys']
+    if which_spectra == "delensed_scalar":
+        cl_dict['PP'] = cl_phiphi* gamma_phi_sys_guess**2 #*gamma_phi_sys_guess**2 #adding gamma into the lensing mearument
+    else:
+        cl_dict['PP'] = cl_phiphi* gamma_phi_sys_guess**2 # test for all
     cl_dict['Tphi'] = cl_Tphi
     cl_dict['Ephi'] = cl_Ephi
 
@@ -732,7 +738,7 @@ def get_delta_cl_cov2(els, unlensedCL, cl_dict, nl_dict, fsky = 1., binsize = 5,
             fullname = 'EE'+item
             sumle = np.einsum('ai,a,aj->ij', new_dB_dE_dict['BB'], cl_dict[fullname][Ls_to_get-2], new_diff_self_dict[item])
             sumlp = np.einsum('ai,a,aj->ij', new_diff_phi_dict['BB'], cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[item])
-            new_cov_dict['BB'+item] = sumlp*dl + sumle
+            new_cov_dict['BB'+item] = sumlp*dl + sumle#bug found ##bug found agagin, don't need dl since there is no summation indeed, it's delta function
             print(cov_dict.keys())
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
@@ -758,7 +764,7 @@ def get_delta_cl_cov2(els, unlensedCL, cl_dict, nl_dict, fsky = 1., binsize = 5,
 
             sumlpi = np.einsum('ai,a,aj->ij', drephi_dphi, cl_dict['PPPP'][Ls_to_get-2], new_diff_phi_dict[itemi])   
             #new_cov_dict['PP'+itemi] = np.diag(new_cov_dict['PP'+itemi]) + sumlpi*dl
-            new_cov_dict['PP'+itemi] = sumlpi
+            new_cov_dict['PP'+itemi] = sumlpi #bug found ##bug found agagin, don't need dl since there is no summation indeed, it's delta function.
     '''
     if which_spectra == 'total' or which_spectra == 'delensed_scalar':
         cov_dict['PPPP'] = 2 /fsky / (2.*els + 1.) * (cl_dict['PP'] + nl_dict['PP'])**2
