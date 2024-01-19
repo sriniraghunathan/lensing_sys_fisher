@@ -6,7 +6,7 @@ from pylab import *
 
 #Fisher matrix file names
 reqd_fsky = None #0.03
-tau_prior = None #0.007 #None #0.007 #None #0.007
+tau_prior = 0.007 #None #0.007 #None #0.007
 #tau_prior = None #0.007
 #noise_level = 6
 noise_level = 1
@@ -22,9 +22,9 @@ flist_dict = {'results/F_mat_CDMp_test_total_bin5_dl5_self_n%s.json' %(noise_lev
 #flist_dict = {'results/F_mat_CDMp_prior_lensys_delensed_scalar_bin5_dl5_self_n%s.json' %(noise_level): 'delensed'}
 '''
 flist_dict = {
-'results/F_mat_CDMp_test_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'lensed',
+#'results/20220930_no_lensing_sys/F_mat_CDMp_test_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'lensed',
 'results/F_mat_CDMp_test_delensed_scalar_bin5_dl5_self_n%.1f.json' %(noise_level): 'delensed',
-'results/F_mat_CDMp_test_unlensed_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'unlensed',
+#'results/20220930_no_lensing_sys/F_mat_CDMp_test_unlensed_total_bin5_dl5_self_n%.1f.json' %(noise_level): 'unlensed',
 }
 
 
@@ -44,6 +44,8 @@ fix_params = []#'alpha_phi_sys']#, 'ombh2']#, 'omch2']#, 'thetastar']
 prior_dic = {}
 if tau_prior is not None:
     prior_dic['tau']=tau_prior
+    prior_dic['alpha_phi_sys']=0.0001
+    prior_dic['A_phi_sys']=1e-23
 F_dict = {}
 which_spectra_arr = []
 for fname in flist_dict:
@@ -104,8 +106,12 @@ param_names_str = '-'.join(desired_params_to_plot)
 plfolder = 'plots/'
 if not os.path.exists(plfolder): os.system('mkdir -p %s' %(plfolder))
 plname = '%s/constraints_%s_noiselevel%s' %(plfolder, param_names_str, noise_level)
-if tau_prior is not None:
-    plname = '%s_tauprior%s' %(plname, tau_prior)
+if len(prior_dic) >= 1: #
+    prior_str = ''
+    for keyname in prior_dic:
+        prior_str = '%s-%s%s' %(prior_str, keyname, prior_dic[keyname])
+    prior_str = prior_str.strip('-')
+    plname = '%s_%s' %(plname, prior_str)
 if reqd_fsky is not None:
     plname = '%s_fsky%s' %(plname, reqd_fsky)
 plname = '%s.png' %(plname)
